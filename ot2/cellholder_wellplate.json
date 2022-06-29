@@ -1,0 +1,60 @@
+{
+    "ordering": [
+        [
+            "A1"
+        ]
+    ],
+    "brand": {
+        "brand": "cell_holder",
+        "brandId": [
+            "01"
+        ]
+    },
+    "metadata": {
+        "displayName": "Cell Holder Location",
+        "displayCategory": "wellPlate",
+        "displayVolumeUnits": "µL",
+        "tags": []
+    },
+    "dimensions": {
+        "xDimension": 127.76,
+        "yDimension": 85.48,
+        "zDimension": 135
+    },
+    "wells": {
+        "A1": {
+            "depth": 2,
+            "totalLiquidVolume": 120,
+            "shape": "circular",
+            "diameter": 19,
+            "x": 95.82,
+            "y": 64.11,
+            "z": 133
+        }
+    },
+    "groups": [
+        {
+            "metadata": {
+                "wellBottomShape": "flat"
+            },
+            "wells": [
+                "A1"
+            ]
+        }
+    ],
+    "parameters": {
+        "format": "irregular",
+        "quirks": [],
+        "isTiprack": false,
+        "isMagneticModuleCompatible": false,
+        "loadName": "cellholder_wellplate"
+    },
+    "namespace": "custom_beta",
+    "version": 1,
+    "schemaVersion": 2,
+    "cornerOffsetFromSlot": {
+        "x": 0,
+        "y": 0,
+        "z": 0
+    }
+}
