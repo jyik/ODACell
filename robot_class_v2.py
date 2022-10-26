@@ -10,6 +10,8 @@ import pandas as pd
 import time
 from dataclasses import dataclass
 from threading import Thread
+import serial
+import re
 
 @dataclass
 class Robot_Position:
@@ -32,7 +34,7 @@ class Dobot:
     def __init__(self, ip_address):
         self.dashboard = DobotApiDashboard(ip_address, 29999)
         self.command = DobotApiMove(ip_address, 30003)
-        self.feedback = DobotApi(ip_address, 30004)
+        self.feedback = DobotApi(ip_address, 30005)
         self.connected = True
         self.pos = Robot_Position(*[0.0, 0.0, 0.0, 0.0, 0.0])
         self.di = 0
@@ -51,6 +53,7 @@ class Dobot:
         #self.speed(self.default_speed)
 
     def set_feedback(self):
+        """Starts live feedback thread"""
         thread = Thread(target=self.feedback_thread)
         thread.setDaemon(True)
         thread.start()
@@ -96,7 +99,7 @@ class Dobot:
                 if a["robot_mode"] == 9:
                     print("error")
 
-            time.sleep(0.005)
+            time.sleep(0.15)
             #testing
             #print_counter += 1
             #if print_counter == 150:
@@ -368,7 +371,10 @@ class Dobbie_Cell(Dobot):
             self.dashboard.SpeedFactor(self.default_speed)
             self.mov('j', movetoheight(get_pnt(nozzle+' nozzle drop', self.coord), 34))
             # move to cell holder drop component position
-            self.mov('l', get_pnt(nozzle+' nozzle drop', self.coord))
+            if component == 'N casing':
+                self.mov('l', movetoheight(get_pnt(nozzle+' nozzle drop', self.coord), -4.85))
+            else:
+                self.mov('l', get_pnt(nozzle+' nozzle drop', self.coord))
             if component == 'P casing':
                 self.vacuum(False)
                 self.command.Sync()
@@ -381,6 +387,13 @@ class Dobbie_Cell(Dobot):
             elif component == 'cath':
                 self.command.RelMovL(0,0,-2.8)
                 self.vacuum(False)
+            elif component == 'N casing':
+                self.vacuum(False)
+                time.sleep(0.3)
+                self.dashboard.DO(9, 1)
+                self.command.RelMovL(0,0,-4.0)
+                time.sleep(1.1)
+                self.dashboard.DO(9, 0)
             else:
                 self.vacuum(False)
             self.command.Sync()
@@ -390,12 +403,8 @@ class Dobbie_Cell(Dobot):
                 self.blow()
             self.mov('l', movetoheight(get_pnt(nozzle+' nozzle drop', self.coord), 34))
             self.command.Sync()
-            # if the last component (anode casing) is being picked up then run corrector which helps position anode casing correctly
-            if component == 'N casing':
-                self.corrector()
-                #time.sleep(3)
         
-    def holder_to_slide(self):
+    def holder_to_intermediate(self):
         """
         Transfers crimped cell from the cell holder (on Dobie Crimp) to the slide for flipping.
         Drops cell into slide and is ready to pick up for cell cycling.\n
@@ -404,13 +413,16 @@ class Dobbie_Cell(Dobot):
         holder_pickup_z = get_pnt('Small nozzle drop', self.coord)
         holder_pickup_z[2] -= 1.8
         self.mov('l', holder_pickup_z)
-        self.dashboard.SpeedFactor(5)
+        self.dashboard.SpeedFactor(2)
         self.vacuum(True)
         self.command.Sync()
         time.sleep(1)
         self.mov('l', movetoheight(get_pnt('Small nozzle drop', self.coord), 50))
         self.dashboard.SpeedFactor(self.default_speed)
         self.mov('j', get_pnt('Slide intermediate', self.coord))
+        self.command.Sync()
+
+    def intermediate_to_slide(self):
         self.mov('l', get_pnt('Slide drop', self.coord))
         self.vacuum(False)
         self.command.Sync()
@@ -477,7 +489,7 @@ class Dobbie_Cell(Dobot):
         self.mov('j', movetoheight(pickup_pnt, pickup_height+15))
         self.mov('l', pickup_pnt)
         self.vacuum(True)
-        self.dashboard.SpeedFactor(5)
+        self.dashboard.SpeedFactor(2)
         self.command.Sync()
         time.sleep(1)
         self.mov('l', movetoheight(pickup_pnt, pickup_height+15))
@@ -644,7 +656,7 @@ class OT2:
         """
         clear_cache = self.get_output()
         self.RawInput("pipette_right.pick_up_tip(s_tiprack.wells()["+str(self.small_tip_index)+"])")
-        self.RawInput("pipette_right.transfer("+str(volume)+", "+electrolyte_location+", cell_holder.wells()[0], new_tip='never')")
+        self.RawInput("pipette_right.transfer("+str(volume)+", "+electrolyte_location+", cell_holder.wells()[0], new_tip='never', blow_out=True, blowout_location='destination well')")
         self.RawInput("pipette_right.drop_tip()")
         self.small_tip_index += 1
         time.sleep(2)
@@ -701,6 +713,33 @@ class OT2:
         
         self.odacell_well_index += 1
         clear_cache = self.get_output()
+
+class arduino_ObjDetect:
+    def __init__(self, com):
+        # com must be str
+        # make sure the 'COM#' is set according the Windows Device Manager
+        self.comport = com
+        try:
+            ser = serial.Serial(self.comport, 9800, timeout=1)
+            ser.close()
+        except:
+            print('Cannot Connect to Arduino')
+            raise ValueError
+
+    def Obj(self):
+        ser = serial.Serial(self.comport, 9800, timeout=1)
+        counter = 0
+        for i in range(3):
+            line = ser.readline()   # read a byte
+            if line:
+                string = line.decode()  # convert the byte string to a unicode string
+                if re.match('Not.*',string):
+                    counter += 1
+        ser.close()
+        if counter > 2:
+            return False
+        else:
+            return True
 
 def get_coords(Sheet_Name = 'Crimp', file_loc = r'C:\Users\renrum\Desktop\Coordinates\coordinates.xlsx'):
     """
