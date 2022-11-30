@@ -15,7 +15,9 @@ Each DOBOT is equipped with a different head allowing different tasks to be exec
 
 ## Demonstration
 <p align="center">
-<iframe width="560" height="315" src="https://www.youtube.com/embed/r_yq-H4orKE" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+https://user-images.githubusercontent.com/28941980/204757016-b787bda3-4028-45c7-8330-914603502bc3.mp4
+
+[Youtube Video of Demo](https://youtu.be/r_yq-H4orKE)
 </p>
 
 ## System
