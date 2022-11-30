@@ -25,3 +25,6 @@ After assembling and cycling 80 cells of the test system, the relative standard 
 2.0 m LiClO<sub>4</sub> in water was added to the DMSO-electrolyte in various amounts and the dis/charge capacities and Coulombic efficiency was evaluated.
 
 ## Datafiles
+Cycling Datafiles for all cells can be found in [datafiles.zip](datafiles.zip).
+
+The analysis of the data can be found in [dataAnalysis.zip](dataAnalysis.zip).
