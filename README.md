@@ -14,11 +14,7 @@ The assembly process is monitored and controlled from one desktop computer, whil
 Each DOBOT is equipped with a different head allowing different tasks to be executed. A vertical gripper is attached to one robot to pick up assembled coin cells and place them in the holder for cycling. A vacuum suction head is attached to another robot to pick up coin cell components and place them onto a holder to be crimped. Finally, a fixed horizontal claw is attached to the last robot to pick up the holder where all the coin cell parts are assembled, bring the holder into the liquid handling robot, and place the holder into the crimper machine.
 
 ## Demonstration
-<p align="center">
-https://user-images.githubusercontent.com/28941980/204757016-b787bda3-4028-45c7-8330-914603502bc3.mp4
-
 [Youtube Video of Demo](https://youtu.be/r_yq-H4orKE)
-</p>
 
 ## System
 - LiFePO<sub>4</sub> || Li<sub>4</sub>Ti<sub>5</sub>O<sub>12</sub> full cells 
