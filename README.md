@@ -15,8 +15,13 @@ Each DOBOT is equipped with a different head allowing different tasks to be exec
 
 ## Demonstration
 <p align="center">
-<video src="https://youtu.be/r_yq-H4orKE"></video>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/r_yq-H4orKE" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 </p>
+
+## System
+- LiFePO<sub>4</sub> || Li<sub>4</sub>Ti<sub>5</sub>O<sub>12</sub> full cells 
+- 2.0 m LiClO<sub>4</sub> in dimethyl sulfoxide (DMSO) electrolyte
+- CR2025 type coin cell configuration
 
 ## Reproducibility
 After assembling and cycling 80 cells of the test system, the relative standard deviation of the discharge capacity was 2%.
