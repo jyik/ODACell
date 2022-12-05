@@ -1,5 +1,5 @@
 # ODACell
-Otto-Dobbie-Autonomous-Cell (ODACell, pronounced similarly to Odyssey) Assembly Platform
+Otto-Dobie-Autonomous-Cell (ODACell, pronounced similarly to Odyssey) Assembly Platform
 
 Robotic Setup intended to accelerate battery research. Automating the assembly and cycling process increases reproducibility of experiments and speeds up experimentation. Downsizing large scale automation to fit into the research lab can shift the focus of research to data analysis and optimization.  
 
