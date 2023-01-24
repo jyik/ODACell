@@ -40,6 +40,8 @@ In the ot2 directory, [cellholder_wellplate.json](./ot2/cellholder_wellplate.jso
 The following is a list of python packages used and their versions. Compatibility of older package versions is not guaranteed.
 - numpy
 - 
+
+Note: the opentrons Python package (in [startup.py](./ot2/startup.py)) is not included in the above list because it is specific to the OT2 and is already installed on the OT2 when received (i.e. it is not necessary to install it on the main computer)
 ## Demonstration
 [Youtube Video of Demo](https://youtu.be/r_yq-H4orKE)
 
