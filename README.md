@@ -14,11 +14,32 @@ The assembly process is monitored and controlled from one desktop computer, whil
 Each DOBOT is equipped with a different head allowing different tasks to be executed. A vertical gripper is attached to one robot to pick up assembled coin cells and place them in the holder for cycling. A vacuum suction head is attached to another robot to pick up coin cell components and place them onto a holder to be crimped. Finally, a fixed horizontal claw is attached to the last robot to pick up the holder where all the coin cell parts are assembled, bring the holder into the liquid handling robot, and place the holder into the crimper machine.
 
 ## Dependencies & Requirements
+### Scripts/Files Explanation
 Python APIs are provided from DOBOT and Opentrons manufacturers to interface robots with Python. This constitutes the low-level code of the project. [dobot_api_v2.py](dobot_api_v2.py) contains the basic commands for the MG400 robotic arms. No separate file is needed for OT2 basic commands; they are already integrated within the robot.
 
 Documentation of API for [DOBOT](https://github.com/Dobot-Arm/TCP-IP-Protocol/blob/master/README-EN.md) and [OT2](https://docs.opentrons.com/v2/) can be found on their github and website, respectively.
 
+[main2.py](main2.py) is the main executable file, which starts the program. [robot_class_v2.py](robot_class_v2.py) and [server.py](server.py) are required to run it. [robot_class_v2.py](robot_class_v2.py) contains all higher-level functions (wrapper for low-level functions to perform robot-specific tasks; therefore, requires [dobot_api_v2.py](dobot_api_v2.py)). [server.py](server.py) must be running on a separate computer before main.py is run; it controls the Astrol Battery Cycler program and automated data collection (battery cycling). Communication of DOBOTs with the main computer and the main computer with the server computer is all ultimately controlled by the socket Python package (TCP/IP protocol); Communication between the main computer and OT2 is controlled by the paramiko Python package (SSH protocol).
 
+The main program reads/writes from/to [coordinates.xlsx](./tables_coordinates/coordinates.xlsx), [electrolyte_list.xlsx](./tables_coordinates/electrolyte_list.xlsx), [make_cells.xlsx](./tables_coordinates/make_cells.xlsx) and [stock_list.xlsx](./tables_coordinates/stock_list.xlsx) occasionally. coordinates.xlsx contain position coordinates for where the pickup positions are for each DOBOT. electrolyte_list.xlsx contain a list of all electrolytes made with the OT2. make_cells.xlsx contain a list of all cells made and to be made; jobs are taken from this list to assemble coin cells. stock_list.xlsx contain information on what the composition of stock solutions are located in which wells. All these Excel sheets will be moved to a SQL database in the future. 
+
+File dependencies:
+```
+main2.py
+├── robot_class_v2.py
+│   └── dobot_api_v2.py
+├── server.py
+├── coordinates.xlsx
+├── electrolyte_list.xlsx
+├── make_cells.xlsx
+└── stock_list.xlsx
+```
+
+In the ot2 directory, [cellholder_wellplate.json](./ot2/cellholder_wellplate.json) should be loaded in the OT2's custom labware and [startup.py](./ot2/startup.py) should be placed in the running directory of the OT2. main.py on the main computer executes startup.py on the OT2 once it is connected via SSH.
+### Python Packages
+The following is a list of python packages used and their versions. Compatibility of older package versions is not guaranteed.
+- numpy
+- 
 ## Demonstration
 [Youtube Video of Demo](https://youtu.be/r_yq-H4orKE)
 
