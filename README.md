@@ -27,7 +27,22 @@ After assembling and cycling 80 cells of the test system, the relative standard 
 ## Water Series Experiments
 2.0 m LiClO<sub>4</sub> in water was added to the DMSO-electrolyte in various amounts and the dis/charge capacities and Coulombic efficiency was evaluated.
 
-## Datafiles
-Cycling Datafiles for all cells can be found in [datafiles.zip](datafiles.zip).
+## Datafiles & Analysis
+### Cycling Datafiles for all cells can be found in [datafiles.zip](datafiles.zip).
+Datafiles are the output files of the Astrol Battery Cycler software. In the zip file, the datafiles are split into two folders: ***reproducibility\_0vol*** and ***water series***.
 
-The analysis of the data can be found in [dataAnalysis.zip](dataAnalysis.zip).
+***reproducibility\_0vol*** contains 83 datafiles, of which 80 were used for determining spread and distribution of the capacities of the assembled batteries. ***water series*** contains 48 datafiles, of which 45 were used to compare the performance of three different electrolyte formulations with varying amounts of added water. To separate each category, there is the string "\_*\[water concentration\]*" added to the end of the filename (e.g. "...\_04.txt" signifies the electrolyte with 4% water).
+- **Filename format:** *\[date\]*\_*\[5 digit ID\]*\_*\[random string\]*\_*\[any comments\]*.txt  
+  e.g. 2022-10-12_66845_Z32zYRTZ3diVqEUzMhdfD2.txt (no comments after *random string*)  
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;2022-10-03_12413_PpCWRt6iFrJsX8EFocfPn6\_removed.txt (comment after *random string*)
+- **Filetype format:** plain text (.txt) CSV filetype with tab ("\\t") delimiter.
+- **Data format:** header - any additional comments (usually "no\_additional\_comments")  
+  &nbsp;&nbsp;&nbsp;Data recorded every 15 seconds  
+  &nbsp;&nbsp;&nbsp;Six columns:
+  - TT \[min\] –⁠ Total time of the experiment in minutes
+  - U \[V\] –⁠ Cell voltage in volts
+  - I \[mA\] –⁠ Current in milliamperes
+  - Z1 \[\] – Cycle number
+  - C \[Ah/kg\] – Cell capacity in ampere-hour per kilogram of active material (in this case Li<sub>4</sub>Ti<sub>5</sub>O<sub>12</sub>)
+  - Comment – Cycling procedure comments (e.g. when charge or discharge ends, etc.)
+### The analysis of the data can be found in [dataAnalysis.zip](dataAnalysis.zip).
