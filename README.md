@@ -43,6 +43,9 @@ Datafiles are the output files of the Astrol Battery Cycler software. In the zip
   - U \[V\] –⁠ Cell voltage in volts
   - I \[mA\] –⁠ Current in milliamperes
   - Z1 \[\] – Cycle number
-  - C \[Ah/kg\] – Cell capacity in ampere-hour per kilogram of active material (in this case Li<sub>4</sub>Ti<sub>5</sub>O<sub>12</sub>)
+  - C \[Ah/kg\] – Cell capacity in ampere-hour per kilogram of limiting active material (in this case Li<sub>4</sub>Ti<sub>5</sub>O<sub>12</sub>)
   - Comment – Cycling procedure comments (e.g. when charge or discharge ends, etc.)
 ### The analysis of the data can be found in [dataAnalysis.zip](dataAnalysis.zip).
+Zip file contains two Jupyter notebooks: ***for_reproducibility.ipynb*** and ***for_waterSeries.ipynb***
+- ***for_reproducibility.ipynb***: Uses only files in *./datafiles/reproducibility\_0vol/* to determine and plot distributions of capacity and differential capacity.
+-  ***for_waterSeries.ipynb***: Uses all the datafiles and categorizes them to plot the performance of each group. 
