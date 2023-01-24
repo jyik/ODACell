@@ -13,20 +13,25 @@ The assembly process is monitored and controlled from one desktop computer, whil
 
 Each DOBOT is equipped with a different head allowing different tasks to be executed. A vertical gripper is attached to one robot to pick up assembled coin cells and place them in the holder for cycling. A vacuum suction head is attached to another robot to pick up coin cell components and place them onto a holder to be crimped. Finally, a fixed horizontal claw is attached to the last robot to pick up the holder where all the coin cell parts are assembled, bring the holder into the liquid handling robot, and place the holder into the crimper machine.
 
+## Dependencies & Requirements
+Python APIs are provided from DOBOT and Opentrons manufacturers to interface robots with Python. This constitutes the low-level code of the project. [dobot_api_v2.py](dobot_api_v2.py) contains the basic commands for the MG400 robotic arms. No separate file is needed for OT2 basic commands; they are already integrated within the robot.
+
+Documentation of API for [DOBOT](https://github.com/Dobot-Arm/TCP-IP-Protocol/blob/master/README-EN.md) and [OT2](https://docs.opentrons.com/v2/) can be found on their github and website, respectively.
+
+
 ## Demonstration
 [Youtube Video of Demo](https://youtu.be/r_yq-H4orKE)
 
-## System
+## Experimentation Using the Robotic System
+Two experiments were conducted on ODACell. The first was to observe the reproducibility of automated coin cell assembly. The second explored different electrolyte compositions. Detailed methods, results and discussion provided in the manuscript.
+### Test System
 - LiFePO<sub>4</sub> || Li<sub>4</sub>Ti<sub>5</sub>O<sub>12</sub> full cells 
 - 2.0 m LiClO<sub>4</sub> in dimethyl sulfoxide (DMSO) electrolyte
 - CR2025 type coin cell configuration
-
-## Reproducibility
+### Reproducibility
 After assembling and cycling 80 cells of the test system, the relative standard deviation of the discharge capacity was 2%.
-
-## Water Series Experiments
-2.0 m LiClO<sub>4</sub> in water was added to the DMSO-electrolyte in various amounts and the dis/charge capacities and Coulombic efficiency was evaluated.
-
+### Water Series Experiments
+2.0 m LiClO<sub>4</sub> in water was added to the DMSO-electrolyte in various amounts and the dis/charge capacities and Coulombic efficiency was evaluated. Similar performance metrics were observed between 0% – 4% water in DMSO-electrolyte.
 ## Datafiles & Analysis
 ### Cycling Datafiles for all cells can be found in [datafiles.zip](datafiles.zip).
 Datafiles are the output files of the Astrol Battery Cycler software. In the zip file, the datafiles are split into two folders: ***reproducibility\_0vol*** and ***water series***.
