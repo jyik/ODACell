@@ -47,6 +47,8 @@ The following is a list of python packages used and their versions. Compatibilit
 - shortuuid 1.0.8
 
 Note: the opentrons Python package (in [startup.py](./ot2/startup.py)) is specific to the OT2 and is already installed on the OT2 when received (i.e. it is not necessary to install it on the main computer)
+## Installation Instructions
+See the [Quick Start Guide](quickstart.md)
 ## Demonstration
 [Youtube Video of Demo](https://youtu.be/r_yq-H4orKE)
 
