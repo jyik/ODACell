@@ -37,11 +37,16 @@ main2.py
 
 In the ot2 directory, [cellholder_wellplate.json](./ot2/cellholder_wellplate.json) should be loaded in the OT2's custom labware and [startup.py](./ot2/startup.py) should be placed in the running directory of the OT2. main.py on the main computer executes startup.py on the OT2 once it is connected via SSH.
 ### Python Packages
+Main scripts were run using Python 3.9.7; *server.py* was run on a different computer with Python 3.10.1
 The following is a list of python packages used and their versions. Compatibility of older package versions is not guaranteed.
-- numpy
-- 
+- numpy 1.21.2
+- pandas 1.3.5
+- paramiko 2.7.2
+- pywinauto 0.6.8, pywin32 303
+- opentrons 5.0.2
+- shortuuid 1.0.8
 
-Note: the opentrons Python package (in [startup.py](./ot2/startup.py)) is not included in the above list because it is specific to the OT2 and is already installed on the OT2 when received (i.e. it is not necessary to install it on the main computer)
+Note: the opentrons Python package (in [startup.py](./ot2/startup.py)) is specific to the OT2 and is already installed on the OT2 when received (i.e. it is not necessary to install it on the main computer)
 ## Demonstration
 [Youtube Video of Demo](https://youtu.be/r_yq-H4orKE)
 
