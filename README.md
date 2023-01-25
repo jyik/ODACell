@@ -82,3 +82,6 @@ Datafiles are the output files of the Astrol Battery Cycler software. In the zip
 Zip file contains two Jupyter notebooks: ***for_reproducibility.ipynb*** and ***for_waterSeries.ipynb***
 - ***for_reproducibility.ipynb***: Uses only files in *./datafiles/reproducibility\_0vol/* to determine and plot distributions of capacity and differential capacity.
 -  ***for_waterSeries.ipynb***: Uses all the datafiles and categorizes them to plot the performance of each group. 
+
+#### Data Cleaning/Preprocessing
+No preprocessing of data was done for distributions and cell voltage vs. capacity plots besides grouping data based on cycle number, dis/charge state, and/or water content. Dis/charge capacities for each cycle were taken to be the highest value of each cycle grouping and Coulombic efficiency was the quotient of charge and discharge capacities. Resampling and calculating the differential capacities on a spline fit of the data was done to obtain smoother differential capacities vs. cell voltage plots.
