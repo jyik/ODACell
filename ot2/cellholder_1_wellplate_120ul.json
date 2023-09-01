@@ -11,7 +11,7 @@
         ]
     },
     "metadata": {
-        "displayName": "Cell Holder Location",
+        "displayName": "Cell_holder 1 Well Plate 120 µL",
         "displayCategory": "wellPlate",
         "displayVolumeUnits": "µL",
         "tags": []
@@ -19,17 +19,17 @@
     "dimensions": {
         "xDimension": 127.76,
         "yDimension": 85.48,
-        "zDimension": 135
+        "zDimension": 140.5
     },
     "wells": {
         "A1": {
-            "depth": 2,
-            "totalLiquidVolume": 120,
+            "depth": 0.4,
+            "totalLiquidVolume": 100,
             "shape": "circular",
             "diameter": 19,
-            "x": 95.82,
-            "y": 64.11,
-            "z": 133
+            "x": 32.7,
+            "y": 64.03,
+            "z": 140
         }
     },
     "groups": [
@@ -47,7 +47,7 @@
         "quirks": [],
         "isTiprack": false,
         "isMagneticModuleCompatible": false,
-        "loadName": "cellholder_wellplate"
+        "loadName": "cellholder_1_wellplate_120ul"
     },
     "namespace": "custom_beta",
     "version": 1,
