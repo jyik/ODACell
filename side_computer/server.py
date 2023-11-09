@@ -14,6 +14,15 @@ import shutil
 import shortuuid
 import random
 import pickle
+from data_analyzer import get_CE, get_energy_density
+
+import sys
+sys.path.append(r"C:\Users\renrum\Desktop\code\MyBOmain")
+sys.path.append(r"C:\Users\renrum\Desktop\code\MyBOmain\mybo")
+from mybo.interface import register_results, get_designs
+AX_PATH = r"C:\Users\renrum\Desktop\code\MyBOmain\results\test\batterydemo\NEHVI_20"
+
+opt_output_dic = {'y0': 'coulombic_eff', 'y1': 'discharge_energy_density'}
 
 
 class batteryCycler:
@@ -89,9 +98,9 @@ class batteryCycler:
         editAstrol = astrolOpenApp.window(title=new_file)
         editAstrol.wait('ready')
         editAstrol.Edit5.type_keys(name)
-        editAstrol.Edit2.type_keys('0.002 g')
+        editAstrol.Edit2.type_keys('0.00884 g')
         editAstrol.Edit4.type_keys(remarks)
-        editAstrol.Edit2.type_keys('2.00 mg')
+        editAstrol.Edit2.type_keys('8.84 mg')
         editAstrol.send_keystrokes('{TAB}')
         # Save and close file
         print('Save and close file: '+name)
@@ -288,6 +297,11 @@ def handle_client(conn, addr):
             elif req == 'listCells':
                 returnMsg = pickle.dumps(ListCells)
                 conn.send(returnMsg)
+            elif req == 'opt_get_designs':
+                num_points = ac.split()[-1]
+                points = get_designs(int(num_points), client_path=AX_PATH)
+                returnMsg = pickle.dumps(points)
+                conn.send(returnMsg)
         elif typ == 'C':
             # Commands are being enqueued
             queue.append([req, ac])
@@ -312,7 +326,7 @@ def worker():
             command = queue.pop(0)
             print(command)
             if command[0] == 'prepareCell':
-                file_template = 'cycling-file.mpr'
+                file_template = 'cycling-file_lfplto_aq_test.mpr'
                 if len(command[1].split()) == 1:
                     rand_name = command[1]
                     comments = 'no_additional_comments'
@@ -341,8 +355,19 @@ def worker():
                     rand_name = command[1].split()[0]
                     mass_change = command[1].split(maxsplit=1)[1]
                     bcycler.changeMass(rand_name, mass_change)
+            elif command[0] == 'registerResults':
+                cell_id = command[1].split()[0]
+                trial_id = command[1].split()[1]
+                ce = get_CE(cell_id).values[0]
+                energy_density_discharge = get_energy_density(cell_id).values[0]
+                register_results([({opt_output_dic['y0']: ce, opt_output_dic['y1']: energy_density_discharge}, int(trial_id))], client_path=AX_PATH)
             print(command[0]+' exeuted!')
-        ListCells = bcycler.listCells()
+        try:
+            ListCells = bcycler.listCells()
+        except IndexError:
+            pass
+        except TypeError:
+            ListCells = []
     print('Worker is stopping.')
 
 workerThread = threading.Thread(target=worker)
@@ -381,6 +406,8 @@ def keyboard_input():
             print('Server is stopping')
             serverRunning = False
             os._exit(0)
+        if keystrk == 'listcells':
+            print(ListCells)
 
 
 keyboardThread=threading.Thread(target=keyboard_input)

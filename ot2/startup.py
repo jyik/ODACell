@@ -35,5 +35,12 @@ labware_names[10] = 'wellplate_qcm'
 labware_names['left'] = 'pipette_left'
 labware_names['right'] = 'pipette_right'
 
+#Set pipette flow rate (speed)
+pipette_right.flow_rate.aspirate = 45
+pipette_right.flow_rate.dispense = 45
+
+pipette_left.flow_rate.aspirate = 120
+pipette_left.flow_rate.dispense = 120
+
 
 protocol.home()

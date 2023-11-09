@@ -1,0 +1,31 @@
+name: DTLZ2
+kwargs:
+  dim: 6
+  noise_std:
+
+parameters:
+  x1: 
+    bounds: [0, 1]
+    type: range
+  x2: 
+    bounds: [0, 1]
+    type: range
+  x3: 
+    bounds: [0, 1]
+    type: range
+  x4: 
+    bounds: [0, 1]
+    type: range
+  x5: 
+    bounds: [0, 1]
+    type: range
+  x6: 
+    bounds: [0, 1]
+    type: range
+
+objectives:
+  y1: 
+    threshold: -1.1 
+  y2: 
+    threshold: -1.1
+  

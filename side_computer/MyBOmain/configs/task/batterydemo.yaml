@@ -1,0 +1,34 @@
+name: batterydemo
+
+parameters:
+  x0_licl_water: 
+    bounds: [0, 1800]
+    type: range
+  x1_licl_dmso: 
+    bounds: [0, 1800]
+    type: range
+  x2_licl_sulfolane: 
+    bounds: [0, 1800]
+    type: range
+  x3_test: 
+    bounds: [0, 1800]
+    type: range
+  x4_test: 
+    bounds: [0, 1800]
+    type: range
+  x5: 
+    bounds: [0, 1800]
+    type: range
+
+constraints: [x0_licl_water + x1_licl_dmso + x2_licl_sulfolane + x3_test + x4_test + x5 <= 1800]
+objectives:
+  coulombic_eff: 
+    threshold: 0.9
+  discharge_energy_density: 
+    threshold: 100.0
+
+  
+  
+  
+   
+  

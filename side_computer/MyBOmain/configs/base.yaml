@@ -1,0 +1,17 @@
+seed: 42
+
+resume_path: ''
+override: False
+experiment_group: test
+experiment_name: ${task.name}_${acq.name}_run_${seed}
+save: True
+save_path: results/${experiment_group}/${task.name}/${acq.name}_${seed}
+batch_size: 1
+max_rounds: 0
+
+defaults:
+  - model: singletask
+  - acqopt: medium
+  - acq: lognei
+  - task: branin
+  - init: sobol
