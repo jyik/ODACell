@@ -23,10 +23,10 @@ class Stack_id(StateMachine):
 
     cycle = stack0.to(stack1) | stack1.to(stack0)
 
-    def on_enter_stack0(self):
-        print("Currently using Stack 0")
-    def on_enter_stack1(self):
-        print("Currently using Stack 1")
+    #def on_enter_stack0(self):
+    #    print("Currently using Stack 0")
+    #def on_enter_stack1(self):
+    #    print("Currently using Stack 1")
 
 class Tray_id(StateMachine):
     tray_num1 = State('1', value=1)

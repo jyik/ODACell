@@ -2,6 +2,8 @@ import typing
 from PyQt5 import QtCore, QtGui, QtWidgets
 from PyQt5.QtWidgets import QWidget
 
+# Each UI has two classes: one that defines the graphics (suffix _window) and one that defines the controls that make it a GUI (suffix _gui)
+
 class add_job_window(object):
     def setupUi(self, Dialog):
         Dialog.setObjectName("Dialog")
@@ -940,7 +942,7 @@ class stock_solutions_gui(QtWidgets.QDialog):
                            [self.ui.solv_9_box, self.ui.comp_9_box, self.ui.conc_9, self.ui.volume_9, self.ui.density_9],
                            [self.ui.solv_10_box, self.ui.comp_10_box, self.ui.conc_10, self.ui.volume_10, self.ui.density_10],
                            [self.ui.solv_11_box, self.ui.comp_11_box, self.ui.conc_11, self.ui.volume_11, self.ui.density_11]]
-        active_stock = self.con.sql("SELECT wellPosition, Solvent_Material_ID, Solvent_Name, Component1_Material_ID, Component1_Name, Component1_Conc, Density_gmL, Volume_uL FROM stockSolutions WHERE Active = TRUE").fetchall()
+        active_stock = self.con.sql("SELECT wellPosition, Solvent_Material_ID, Solvent_Name, Component1_Material_ID, Component1_Name, Component1_Conc_molal, Density_gmL, Volume_uL FROM stockSolutions").fetchall()
         if active_stock:
             for item in active_stock:
                 well = item[0]
@@ -957,12 +959,11 @@ class stock_solutions_gui(QtWidgets.QDialog):
         self.con.sql("DROP TABLE StockSolutions")
         self.con.sql(r"""CREATE TABLE stockSolutions(
         wellPosition INTEGER,
-        Active BOOLEAN DEFAULT TRUE,
         Solvent_Material_ID INTEGER,
         Solvent_Name VARCHAR(255),
         Component1_Material_ID INTEGER,
         Component1_Name VARCHAR(255), 
-        Component1_Conc DOUBLE,
+        Component1_Conc_molal DOUBLE,
         Density_gmL DOUBLE,
         Volume_uL DOUBLE)""")
 
@@ -970,7 +971,7 @@ class stock_solutions_gui(QtWidgets.QDialog):
         solutions_list = [i for i in to_db if len(i) == 8]
         solvents_list = [i[:3]+i[-2:] for i in to_db if len(i) == 7]
         if solutions_list:
-            self.con.executemany("INSERT INTO StockSolutions(wellPosition, Solvent_Material_ID, Solvent_Name, Component1_Material_ID, Component1_Name, Component1_Conc, Density_gmL, Volume_uL) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", solutions_list)
+            self.con.executemany("INSERT INTO StockSolutions(wellPosition, Solvent_Material_ID, Solvent_Name, Component1_Material_ID, Component1_Name, Component1_Conc_molal, Density_gmL, Volume_uL) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", solutions_list)
         if solvents_list:
             self.con.executemany("INSERT INTO StockSolutions(wellPosition, Solvent_Material_ID, Solvent_Name, Density_gmL, Volume_uL) VALUES (?, ?, ?, ?, ?)", solvents_list)
     def get_material_list(self):

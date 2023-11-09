@@ -90,46 +90,78 @@ class OT2:
                     check_1 += 1
             time.sleep(0.5)
 
-    def prepare_electrolyte(self, stock_wells, transfer_volumes, electrolyte_location):
-        # NEEDS TO BE UPDATED; NOT WORKING!
-        #dilution_factors = [liquid[1]/stock_solutions[stock_solutions.index(n)][-1] for liquid in electrolyte_comp[1:] for n in stock_solutions if liquid[0] in n]
-        #stock_ids = [n[0] for liquid in electrolyte_comp[1:] for n in stock_solutions if liquid[0] in n]
-        #transfer_volumes = [i * electrolyte_comp[0] for i in dilution_factors]
-        #solvent_volume = electrolyte_comp[0] - np.sum(transfer_volumes)
+    def prepare_electrolyte(self, stock_vol, electrolyte_location):
+        
+        #example stock_vol = [('0', 100), ('1', 200), ('2', 300)]
 
-
-        for v in transfer_volumes:
-            if v < 20 or v > 1000:
-                raise ValueError
-        final_vol = transfer_volumes.pop()
-        final_well = stock_wells.pop()
-        for i, vol in zip(stock_wells, transfer_volumes):
-            if 20 <= vol <= 300:
+        if all(20<=i[1]<=1800 for i in stock_vol):
+            final_stock = stock_vol.pop()
+            self.odacell_well_index += 1
+            for well, vol in stock_vol:
+                if 20 <= vol <= 300:
+                    self.RawInput("pipette_right.pick_up_tip(s_tiprack.wells()["+str(self.small_tip_index)+"])")
+                    self.RawInput("pipette_right.transfer("+str(round(vol, 2))+", stock_solutions.wells()["+str(well)+"], "+electrolyte_location+", new_tip='never')")
+                    self.RawInput("pipette_right.drop_tip()")
+                    self.small_tip_index += 1
+                elif 300 < vol <= 1000:
+                    self.RawInput("pipette_left.pick_up_tip(l_tiprack.wells()["+str(self.large_tip_index)+"])")
+                    self.RawInput("pipette_left.transfer("+str(round(vol, 2))+", stock_solutions.wells()["+str(well)+"], "+electrolyte_location+", new_tip='never')")
+                    self.RawInput("pipette_left.drop_tip()")
+                    self.large_tip_index += 1
+                elif vol > 1000:
+                    if (vol - 900) < 20:
+                        stock_vol.append((well, 800))
+                        stock_vol.append((well, vol-800))
+                    else:
+                        stock_vol.append((well, 900))
+                        stock_vol.append((well, vol-900))
+                    
+            if 20 <= final_stock[1] <= 300:
                 self.RawInput("pipette_right.pick_up_tip(s_tiprack.wells()["+str(self.small_tip_index)+"])")
-                self.RawInput("pipette_right.transfer("+str(round(vol, 2))+", stock_solutions.wells()["+str(i)+"], "+electrolyte_location+", new_tip='never')")
+                self.RawInput("pipette_right.transfer("+str(round(final_stock[1], 2))+", stock_solutions.wells()["+str(final_stock[0])+"], "+electrolyte_location+", new_tip='never',  mix_after=(9,275))")
                 self.RawInput("pipette_right.drop_tip()")
                 self.small_tip_index += 1
-            elif vol > 300:
+            elif 300 < final_stock[1] <= 1000:
                 self.RawInput("pipette_left.pick_up_tip(l_tiprack.wells()["+str(self.large_tip_index)+"])")
-                self.RawInput("pipette_left.transfer("+str(round(vol, 2))+", stock_solutions.wells()["+str(i)+"], "+electrolyte_location+", new_tip='never')")
+                self.RawInput("pipette_left.transfer("+str(round(final_stock[1], 2))+", stock_solutions.wells()["+str(final_stock[0])+"], "+electrolyte_location+", new_tip='never', mix_after=(9,800))")
                 self.RawInput("pipette_left.drop_tip()")
                 self.large_tip_index += 1
-                
-        if 20 <= final_vol <= 300:
-            self.RawInput("pipette_right.pick_up_tip(s_tiprack.wells()["+str(self.small_tip_index)+"])")
-            self.RawInput("pipette_right.transfer("+str(round(final_vol, 2))+", stock_solutions.wells()["+str(final_well)+"], "+electrolyte_location+", new_tip='never', mix_after=(9,275))")
-            self.RawInput("pipette_right.drop_tip()")
-            self.small_tip_index += 1
-        elif final_vol > 300:
-            self.RawInput("pipette_left.pick_up_tip(l_tiprack.wells()["+str(self.large_tip_index)+"])")
-            self.RawInput("pipette_left.transfer("+str(round(final_vol, 2))+", stock_solutions.wells()["+str(final_well)+"], "+electrolyte_location+", new_tip='never', mix_after=(9,800))")
-            self.RawInput("pipette_left.drop_tip()")
-            self.large_tip_index += 1
-        
-        self.odacell_well_index += 1
+            elif final_stock[1] > 1000:
+                if (final_stock[1] - 900) < 20:
+                    self.RawInput("pipette_left.pick_up_tip(l_tiprack.wells()["+str(self.large_tip_index)+"])")
+                    self.RawInput("pipette_left.transfer("+str(800)+", stock_solutions.wells()["+str(final_stock[0])+"], "+electrolyte_location+", new_tip='never')")
+                    self.RawInput("pipette_left.drop_tip()")
+                    self.large_tip_index += 1
+                    if (final_stock[1] - 800) <= 300:
+                        self.RawInput("pipette_right.pick_up_tip(s_tiprack.wells()["+str(self.small_tip_index)+"])")
+                        self.RawInput("pipette_right.transfer("+str(round(final_stock[1]-800, 2))+", stock_solutions.wells()["+str(final_stock[0])+"], "+electrolyte_location+", new_tip='never',  mix_after=(9,275))")
+                        self.RawInput("pipette_right.drop_tip()")
+                        self.small_tip_index += 1
+                    else:
+                        self.RawInput("pipette_left.pick_up_tip(l_tiprack.wells()["+str(self.large_tip_index)+"])")
+                        self.RawInput("pipette_left.transfer("+str(round(final_stock[1]-800, 2))+", stock_solutions.wells()["+str(final_stock[0])+"], "+electrolyte_location+", new_tip='never', mix_after=(9,800))")
+                        self.RawInput("pipette_left.drop_tip()")
+                        self.large_tip_index += 1
+                else:
+                    self.RawInput("pipette_left.pick_up_tip(l_tiprack.wells()["+str(self.large_tip_index)+"])")
+                    self.RawInput("pipette_left.transfer("+str(900)+", stock_solutions.wells()["+str(final_stock[0])+"], "+electrolyte_location+", new_tip='never')")
+                    self.RawInput("pipette_left.drop_tip()")
+                    self.large_tip_index += 1
+                    if (final_stock[1] - 900) <= 300:
+                        self.RawInput("pipette_right.pick_up_tip(s_tiprack.wells()["+str(self.small_tip_index)+"])")
+                        self.RawInput("pipette_right.transfer("+str(round(final_stock[1]-900, 2))+", stock_solutions.wells()["+str(final_stock[0])+"], "+electrolyte_location+", new_tip='never',  mix_after=(9,275))")
+                        self.RawInput("pipette_right.drop_tip()")
+                        self.small_tip_index += 1
+                    else:
+                        self.RawInput("pipette_left.pick_up_tip(l_tiprack.wells()["+str(self.large_tip_index)+"])")
+                        self.RawInput("pipette_left.transfer("+str(round(final_stock[1]-900, 2))+", stock_solutions.wells()["+str(final_stock[0])+"], "+electrolyte_location+", new_tip='never', mix_after=(9,800))")
+                        self.RawInput("pipette_left.drop_tip()")
+                        self.large_tip_index += 1
+        else:
+            raise ValueError
         clear_cache = self.get_output()
     
-    def get_mixing_volumes(self, init_molals, final_molals, molar_masses, densities, solvent_mass = 0.95):
+    def get_mixing_volumes(self, init_molals, final_molals, molar_masses, densities, solvent_mass = 1.3):
         """
         Calculates the volumes required to create an electrolyte.\n
         Inputs:\n
@@ -143,7 +175,12 @@ class OT2:
         volumes_to_transfer = [(init_molal*molar_mass+1000)*init_solvent_mass/density/1000 for init_molal,molar_mass,init_solvent_mass,density in zip(init_molals, molar_masses, init_solvent_masses, densities[:-1])]
         solvent_vol_to_transfer = (solvent_mass - sum(init_solvent_masses))/densities[-1]
 
-        if (solvent_vol_to_transfer < 0.02) or (sum(volumes_to_transfer)+solvent_vol_to_transfer > 1.0) or (not all(0.020 < x < 1.0 for x in volumes_to_transfer)):
+        if (solvent_vol_to_transfer < 0.02) or (sum(volumes_to_transfer)+solvent_vol_to_transfer > 1.9) or (not all(0.020 < x < 1.0 for x in volumes_to_transfer)):
+            print(init_molals)
+            print(final_molals)
+            print(densities)
+            print(volumes_to_transfer)
+            print(solvent_vol_to_transfer)
             raise ValueError
         else:
             return volumes_to_transfer+[solvent_vol_to_transfer]
