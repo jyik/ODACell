@@ -77,6 +77,7 @@ class worker:
 # Define track_objs and if-cell-finished-cycling checker
 def live_status_updater(track_objs, otto, Queue):
     """Updates every x seconds status of astrol and trackable objects i.e. num of available channels, which cells are running, which are done, status of crimper, number of trays"""
+    finished_str = ''
     while True:
         temp_track_objs = Trackables()
         temp_track_objs.load()
@@ -101,8 +102,12 @@ def live_status_updater(track_objs, otto, Queue):
         temp_finished = duckdb.execute("SELECT Name, CyclerSlot FROM cycler_stat WHERE Status = 'Finished'").fetchall()
         if len(temp_finished):
             for (name_id, toremove_cycler_id) in temp_finished:
-                Queue.append('removeCell '+name_id+' '+toremove_cycler_id)
-        time.sleep(2.5)
+                if name_id+' ' not in finished_str:
+                    Queue.append('removeCell '+name_id+' '+toremove_cycler_id)
+                    finished_str += name_id+' '
+                if len(finished_str) > 50:
+                    finished_str = finished_str[-6:]
+        time.sleep(3)
 
 def cycler_status(listofCells):
     nam = []

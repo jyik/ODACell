@@ -8,7 +8,7 @@ import pickle
 HEADER = 64
 PORT = 5051
 FORMAT = 'utf-8'
-SERVER = "130.238.197.165"
+SERVER = "130.238.197.244"
 ADDR = (SERVER, PORT)
 
 def send(msg):

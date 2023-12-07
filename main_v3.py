@@ -1,6 +1,6 @@
-from database_functions import get_electrolyte, dispense_electrolyte, get_job, change_coinCell_status, volConc_to_mol, add_coinCell, get_trial_id
+from database_functions import get_electrolyte, dispense_electrolyte, get_job, change_coinCell_status, volConc_to_mol, add_coinCell, get_trial_id, water_mol_ratio
 
-
+import pickle
 import random
 import duckdb
 from dobbie_crimp import D_CRIMP
@@ -39,7 +39,6 @@ track_objs.load()
 
 otto.small_tip_index = track_objs.small_pipette_int
 otto.large_tip_index = track_objs.large_pipette_int
-otto.odacell_well_index = track_objs.wellIndex_int
 
 # ---
 # -----Setup Worker and Queue-----
@@ -47,6 +46,11 @@ otto.odacell_well_index = track_objs.wellIndex_int
 
 Queue = []
 worker1 = worker()
+try:
+    with open('elec_mixing_volumes.pkl', 'rb') as f:
+        elec_mixing_queue = pickle.load(f)
+except FileNotFoundError:
+    elec_mixing_queue = {}
 #dobots_positions = {'crimp': dcrimp.pos, 'grip': dgrip.pos}
 
 # ---
@@ -95,11 +99,13 @@ def removeCell(rest_of_cmds):
     opt_client, opt_trial = get_trial_id(name_id)
     returnMsg = send('C exportCelldata '+name_id)
     returnMsg = send('C stopCell '+name_id)
-    returnMsg = send('C registerResults '+name_id+' '+str(opt_trial))
+    returnMsg = send('C registerResults '+name_id+' '+str(opt_trial)+' '+str(water_mol_ratio(name_id)))
     change_coinCell_status(3, name_id)
     dgrip.remove_from_cycler('Cycling Station '+toremove_cycler_id)
 
+
 def assembleCell(rest_of_cmds):
+    global elec_mixing_queue
     # if there is no available capacity (all channels in use), place command back into queue
     if track_objs.CyclingState.current_state_value == 0:
         Queue.append('assembleCell')
@@ -108,8 +114,16 @@ def assembleCell(rest_of_cmds):
         # takes the first available cell (status 0) in make cells tables; if none then just pass
         try:
             cell_id, elec_id, well = get_job()
+            otto.prepare_electrolyte(elec_mixing_queue[cell_id][0], "wellplate_odacell.wells()["+str(well)+"]")
+            del elec_mixing_queue[cell_id]
+            with open('elec_mixing_volumes.pkl', 'wb') as f:
+                pickle.dump(elec_mixing_queue, f)
         except TypeError:
             print("No more jobs available; please add to list")
+            return
+        except ValueError:
+            print('Cannot make specified electrolyte with current stock solutions.')
+            change_coinCell_status(404, cell_id)
             return
         if not well:
             print("No well associated with electrolyte, please check.")
@@ -172,6 +186,7 @@ def assembleCell(rest_of_cmds):
         print('Cell ID '+cell_id+' successfully assembled and is cycling')
 
 def add_job(rest_of_cmds):
+    global elec_mixing_queue
     optimizer = rest_of_cmds[0]
     if rest_of_cmds[1:]:
         num_trials = rest_of_cmds[1]
@@ -179,23 +194,19 @@ def add_job(rest_of_cmds):
         num_trials = '1'
     try:
         trials = send('Q opt_get_designs '+optimizer+' '+num_trials)
-        print(trials)
         #default electrode_id for now
         electrode_ids = [1, 2]
         for trial in trials:
             components, trial_num = trial
-            wellVol_list = [(key[1],components[key]) for key in components]
+            wellVol_list = [(key[1],components[key]*20) for key in components]
             query_comp_list = volConc_to_mol(wellVol_list)
-            elec_id, well = get_electrolyte(track_objs.wellIndex_int, query_comp_list, round(sum(components.values())))
+            elec_id, well = get_electrolyte(track_objs.wellIndex_int, query_comp_list, round(sum(components.values())*20))
+            name_id = "{:05d}".format(random.randint(0,99999))
             if well == track_objs.wellIndex_int:
-                try:
-                    otto.prepare_electrolyte(wellVol_list, "wellplate_odacell.wells()["+str(well)+"]")
-                    otto.get_output()
-                except ValueError:
-                    print('Cannot make specified electrolyte with current stock solutions.')
-                    return
-            track_objs.wellIndex_int = otto.odacell_well_index
-            add_coinCell("{:05d}".format(random.randint(0,99999)), elec_id, electrode_ids, trial_num, optimizer)
+                elec_mixing_queue[name_id] = [wellVol_list, well]
+                with open('elec_mixing_volumes.pkl', 'wb') as f:
+                    pickle.dump(elec_mixing_queue, f)
+            add_coinCell(name_id, elec_id, electrode_ids, trial_num, optimizer)
     except TypeError:
         print('canceled, no jobs added')
 
@@ -217,11 +228,11 @@ def update(rest_of_cmd):
             track_objs.working_area_loaded_int = 0
         print("update successful; working area is loaded: {}".format(track_objs.working_area_loaded_int))
     def small_pipette_id():
-        track_objs.small_pipette_int = int(var_val)
-        print("update successful; small_tip_index = {}".format(track_objs.small_pipette_int))
+        otto.small_tip_index = int(var_val)
+        print("update successful; small_tip_index = {}".format(otto.small_tip_index))
     def large_pipette_id():
-        track_objs.large_pipette_int = int(var_val)
-        print("update successful; large_tip_index = {}".format(track_objs.large_pipette_int))
+        otto.large_tip_index = int(var_val)
+        print("update successful; large_tip_index = {}".format(otto.large_tip_index))
     def elec_vol():
         track_objs.electrolyte_vol_int = int(var_val)
         print("update successful; OT2 dispensing volume: {} uL".format(track_objs.electrolyte_vol_int))

@@ -163,7 +163,7 @@ def print_table(tableName):
     """
     Prints database table into terminal.
     """
-    con = duckdb.connect(database_name, read_only=True)
+    con = duckdb.connect(database_name)
     try:
         print(con.execute("SELECT * FROM "+tableName).fetch_df().to_string())
     except duckdb.CatalogException as e:
@@ -172,7 +172,7 @@ def print_table(tableName):
         con.close()
 
 def get_job():
-    con = duckdb.connect(database_name, read_only=True)
+    con = duckdb.connect(database_name)
     try:
         cell_id, elec_id = con.execute("SELECT ID, Electrolyte_ID FROM coinCells WHERE Status == 0").fetchone()
     except TypeError:
@@ -206,7 +206,7 @@ def get_mixing_volumes(init_molals, final_molals, molar_masses, densities, solve
         return volumes_to_transfer+[solvent_vol_to_transfer]
     
 def volConc_to_mol(wellVol_list):
-    con = duckdb.connect(database_name, read_only=True)
+    con = duckdb.connect(database_name)
     mol_comp = {}
     for i in wellVol_list:
         solution = con.execute("SELECT Solvent_Material_ID, Component1_Material_ID, Component1_Conc_molal, Density_gmL FROM stockSolutions WHERE wellPosition = ?", [i[0]]).fetchone()
@@ -240,7 +240,19 @@ def add_coinCell(id, electrolyte_id, electrode_ids, trial, optimizer='batterydem
     con.close()
 
 def get_trial_id(name_id):
-    con = duckdb.connect(database_name, read_only=True)
+    con = duckdb.connect(database_name)
     client_trial = con.execute("SELECT Opt_Client, Trial FROM coinCells WHERE ID = ?", [name_id]).fetchone()
     con.close()
     return client_trial
+
+def water_mol_ratio(name_id):
+    con = duckdb.connect(database_name)
+    elec_id = con.execute("SELECT Electrolyte_ID FROM coinCells WHERE ID = ?", [name_id]).fetchone()[0]
+    h20_comp = con.execute("SELECT Material_mol FROM electrolyteComp WHERE Electrolyte_ID = ? AND LOWER(Material_Name) = 'h2o'", [elec_id]).fetchall()
+    mol_h2o = sum([i[0] for i in h20_comp])
+    non_aq_solvent_list = ['dmso', 'acetonitrile', 'trimethyl phosphate']
+    non_aq_str = '('+' OR '.join(["LOWER(Material_Name) = '"+i+"'" for i in non_aq_solvent_list])+')'
+    non_aq_comp = con.execute("SELECT Material_mol FROM electrolyteComp WHERE Electrolyte_ID = ? AND "+non_aq_str, [elec_id]).fetchall()
+    mol_nonaq = sum([i[0] for i in non_aq_comp])
+    con.close()
+    return mol_h2o/mol_nonaq
