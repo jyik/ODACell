@@ -20,29 +20,37 @@ def get_generation_strategy(
     ) -> Dict:
         
     model_enum = Models.BOTORCH_MODULAR
-    init_step = GenerationStep(
-        Models.SOBOL,
-        num_trials=compute_doe(init_cfg.num_doe, dimension=num_dimensions)
-    )
-    
+
+        
     bo_step = GenerationStep(
             # model=model_enum,
             model=model_enum,
             num_trials=budget,
             model_kwargs={
+                # ensure we don't model the tracking metrics that are returned
+                # witht the objecive 
+                "fit_tracking_metrics": False,
                 "surrogate": Surrogate(
                             botorch_model_class=MODEL_REGISTRY[model_cfg.name],
-                            model_options=parse_model_options(model_cfg.get('kwargs'))
+                            model_options=parse_model_options(model_cfg["kwargs"]),
+                            mll_options=model_cfg.get("fit_kwargs"),
                 ),
                 "botorch_acqf_class": ACQUISITION_REGISTRY[acq_cfg.name],
-                "acquisition_options": parse_acquisition_options(acq_cfg.get('kwargs')),
+                "acquisition_options": parse_acquisition_options(acq_cfg.get("kwargs")),
             },
             # must do OmegaConf.to_containe for dict conversion - serializability when saving
             model_gen_kwargs={"model_gen_options": { 
-                    "optimizer_kwargs": OmegaConf.to_container(acqopt_cfg)
+                    "optimizer_kwargs": OmegaConf.to_container(acqopt_cfg),
                 },
             },
         )
-    steps = [init_step, bo_step]
+    if compute_doe(init_cfg.num_doe, dimension=num_dimensions) > 0:
+        init_step = GenerationStep(
+            Models.SOBOL,
+            num_trials=compute_doe(init_cfg.num_doe, dimension=num_dimensions)
+        )
+        steps = [init_step, bo_step]
+    else:
+        steps = [bo_step]
     return GenerationStrategy(steps=steps)
     

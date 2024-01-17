@@ -14,15 +14,15 @@ import shutil
 import shortuuid
 import random
 import pickle
-from data_analyzer import get_CE, get_energy_density
+from data_analyzer import get_CE, get_capacity
 
 import sys
 sys.path.append(r"C:\Users\renrum\Desktop\code\MyBOmain")
 sys.path.append(r"C:\Users\renrum\Desktop\code\MyBOmain\mybo")
-from mybo.interface import register_results, get_designs
-AX_PATH = r"C:\Users\renrum\Desktop\code\MyBOmain\results\test\batterydemo\NEHVI_20"
+from mybo.interface import register_results, get_designs, cancel_trials
+AX_PATH = r"C:\Users\renrum\Desktop\code\MyBOmain\results\coSolv\coSolvents_20240110\DWIT\seed11"
 
-opt_output_dic = {'y0': 'coulombic_eff', 'y1': 'discharge_energy_density'}
+opt_output_dic = {'y0': 'coulombic_eff', 'y1': 'discharge_capacity', 'y2': 'aq_solvent_mol_percent'}
 
 
 class batteryCycler:
@@ -326,7 +326,7 @@ def worker():
             command = queue.pop(0)
             print(command)
             if command[0] == 'prepareCell':
-                file_template = 'cycling-file_lfplto_aq_test.mpr'
+                file_template = 'cycling-file_aq_bo_2.mpr'
                 if len(command[1].split()) == 1:
                     rand_name = command[1]
                     comments = 'no_additional_comments'
@@ -358,9 +358,16 @@ def worker():
             elif command[0] == 'registerResults':
                 cell_id = command[1].split()[0]
                 trial_id = command[1].split()[1]
-                ce = get_CE(cell_id).values[0]
-                energy_density_discharge = get_energy_density(cell_id).values[0]
-                register_results([({opt_output_dic['y0']: ce, opt_output_dic['y1']: energy_density_discharge}, int(trial_id))], client_path=AX_PATH)
+                mol_ratio = command[1].split()[2]
+                try:
+                    ce = get_CE(cell_id)
+                    cap_discharge = get_capacity(cell_id)
+                    print("CE = "+str(ce))
+                    print("Discharge Capacity = "+str(cap_discharge))
+                    register_results([({opt_output_dic['y0']: ce, opt_output_dic['y1']: cap_discharge, opt_output_dic['y2']: float(mol_ratio)}, int(trial_id))], client_path=AX_PATH)
+                except ValueError:
+                    cancel_trials([int(trial_id)], client_path=AX_PATH)
+                    print('failed cell/trial.')
             print(command[0]+' exeuted!')
         try:
             ListCells = bcycler.listCells()

@@ -1,0 +1,42 @@
+name: coSolvents_20240110
+
+parameters:
+  x0_liclo4_dmso: 
+    bounds: [0, 1000]
+    type: range
+  x1_liclo4_tmp: 
+    bounds: [0, 1000]
+    type: range
+  x2_liclo4_acn: 
+    bounds: [0, 1000]
+    type: range
+  x3_liclo4_h2o: 
+    bounds: [0, 1000]
+    type: range
+  x4_litfsi_dmso: 
+    bounds: [0, 1000]
+    type: range
+  x5_litfsi_tmp: 
+    bounds: [0, 1000]
+    type: range
+  x6_litfsi_acn: 
+    bounds: [0, 1000]
+    type: range
+#  x7_litfsi_h2o: 
+#    bounds: [0, 1000]
+#    type: range
+
+constraints: [x0_liclo4_dmso + x1_liclo4_tmp + x2_liclo4_acn + x3_liclo4_h2o + x4_litfsi_dmso + x5_litfsi_tmp + x6_litfsi_acn <= 1250]
+objectives:
+  coulombic_eff: 
+    threshold: 2.9444 #logit(0.95)
+  discharge_capacity: 
+    threshold: 2.442 #logit(0.92)
+  aq_solvent_mol_percent:
+    threshold: 0.2
+
+  
+  
+  
+   
+  

@@ -1,0 +1,14 @@
+name: Branin
+
+parameters:
+  x1: 
+    bounds: [0, 50] #NOTE - NOT [0, 1000]
+    type: range
+    value_type: int # Assures all the suggestions to integers!
+  x2: 
+    bounds: [0, 50]
+    type: range
+    value_type: int
+
+objectives:
+  y1

@@ -1,0 +1,10 @@
+name: Hartmann
+dim: 6
+noise_std: 0.0192
+appends: dim
+parameters:
+  _all: 
+    bounds: [0.0, 1.0]
+    type: range
+objectives: 
+  y1

@@ -1,0 +1,15 @@
+name: Ishigami
+noise_std: 0.187
+parameters:
+  x1: 
+    bounds: [-3.14152, 3.14152]
+    type: range
+  x2: 
+    bounds: [-3.14152, 3.14152]
+    type: range
+  x3: 
+    bounds: [-3.14152, 3.14152]
+    type: range
+
+objectives:
+  y1

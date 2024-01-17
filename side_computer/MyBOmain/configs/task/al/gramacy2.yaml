@@ -1,0 +1,12 @@
+name: Gramacy2
+noise_std: 0.05
+parameters:
+  x1: 
+    bounds: [-2, 6]
+    type: range
+  x2: 
+    bounds: [-2, 6]
+    type: range
+
+objectives:
+  y1

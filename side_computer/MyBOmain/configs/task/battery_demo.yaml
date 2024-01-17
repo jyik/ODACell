@@ -1,0 +1,31 @@
+name: BatteryDemo
+
+parameters:
+  x1_whatever: 
+    bounds: [0.5, 1.5]
+    type: range
+  x2_something: 
+    bounds: [0.45, 1.35]
+    type: range
+  x3_else: 
+    bounds: [0.5, 1.5]
+    type: range
+  x4_cat: 
+    bounds: [0.5, 1.5]
+    type: range
+  x5_dog: 
+    bounds: [0.875, 2.625] 
+    type: range
+  x6: 
+    bounds: [0.4, 1.2] 
+    type: range
+objectives:
+  y1: 
+    threshold: -45.4872
+  y2: 
+    threshold: -4.5114
+  
+  
+  
+   
+  

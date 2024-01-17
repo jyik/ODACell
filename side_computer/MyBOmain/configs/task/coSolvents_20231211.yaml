@@ -1,0 +1,42 @@
+name: coSolvents_20231211
+
+parameters:
+  x0_liclo4_dmso: 
+    bounds: [0, 1000]
+    type: range
+  x1_liclo4_tmp: 
+    bounds: [0, 1000]
+    type: range
+  x2_liclo4_acn: 
+    bounds: [0, 1000]
+    type: range
+  x3_liclo4_h2o: 
+    bounds: [0, 1000]
+    type: range
+  x4_litfsi_dmso: 
+    bounds: [0, 1000]
+    type: range
+  x5_litfsi_tmp: 
+    bounds: [0, 1000]
+    type: range
+  x6_litfsi_acn: 
+    bounds: [0, 1000]
+    type: range
+  x7_litfsi_h2o: 
+    bounds: [0, 1000]
+    type: range
+
+constraints: [x0_liclo4_dmso + x1_liclo4_tmp + x2_liclo4_acn + x3_liclo4_h2o + x4_litfsi_dmso + x5_litfsi_tmp + x6_litfsi_acn + x7_litfsi_h2o <= 1750] #Sum of the parameters must be less than 1200 (60)
+objectives:
+  coulombic_eff: 
+    threshold: 0.95
+  discharge_energy_density: 
+    threshold: 200.0
+  aq_to_non_aq:
+    threshold: 0.2
+
+  
+  
+  
+   
+  

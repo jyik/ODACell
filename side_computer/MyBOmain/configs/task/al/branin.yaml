@@ -1,0 +1,12 @@
+name: Branin
+noise_std: 11.32
+parameters:
+  x1: 
+    bounds: [-5, 10]
+    type: range
+  x2: 
+    bounds: [0, 15]
+    type: range
+
+objectives:
+  y1

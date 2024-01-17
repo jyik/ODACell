@@ -1,0 +1,28 @@
+name: VehicleSafety
+
+parameters:
+  x1: 
+    bounds: [1, 3]
+    type: range
+  x2: 
+    bounds: [1, 3]
+    type: range
+  x3: 
+    bounds: [1, 3]
+    type: range
+  x4: 
+    bounds: [1, 3]
+    type: range
+  x5: 
+    bounds: [1, 3]
+    type: range
+
+
+objectives:
+  y1: 
+    threshold: 1864.72022
+  y2: 
+    threshold: 11.81993945
+  y3: 
+    threshold:  0.2903999384
+  
