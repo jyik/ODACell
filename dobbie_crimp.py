@@ -71,8 +71,15 @@ class D_CRIMP(Dobot):
         """
         self.mov('j', movetoheight(get_pnt('Dobie Crimp Outside Active Site - Unloaded', self.coord), ref_h))
         self.mov('l', get_pnt('Dobie Crimp Outside Active Site - Unloaded', self.coord))
-        self.dashboard.SpeedFactor(15)
+        self.dashboard.SpeedFactor(5)
         self.mov('l', get_pnt('Dobie Crimp Inside Active Site - Loaded', self.coord))
+        #self.command.RelMovL(0, 0, 1.0)
+        #for _ in range(5):
+        #    self.command.RelMovL(0, 0, 0.5)
+        #    self.command.RelMovL(0.1, -0.1, 0)
+            #self.command.RelMovL(0, 0, 0.5)
+            #self.command.RelMovL(0, -0.4, 0)
+            #self.command.RelMovL(0, 0.4, 0)
         self.mov('l', get_pnt('Dobie Crimp Above Active Site - Loaded', self.coord))
         self.dashboard.SpeedFactor(self.default_speed)
         self.command.Sync()

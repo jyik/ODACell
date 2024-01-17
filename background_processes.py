@@ -124,4 +124,17 @@ def cycler_status(listofCells):
     else:
         cycler_status = pl.DataFrame({'CyclerSlot': [str(a)+'-'+str(b) for a in range(2) for b in range(1,9)], 'Name': None, 'Status': None}, schema=[('CyclerSlot', pl.Utf8), ('Name', pl.Utf8), ('Status', pl.Utf8)])
     return cycler_status
-        
+
+def myround(x, base=20.0):
+    return base * round(x/base)
+
+def trial_saver(trial, data_points, file_name='default.csv'):
+    trial_dict = {'trial':trial}
+    trial_dict.update({i: myround(data_points[i]) for i in data_points})
+    try:
+        pl.read_csv(file_name)
+        with open(file_name, mode="ab") as f:
+            pl.from_dict(trial_dict).write_csv(f, has_header=False)
+    except FileNotFoundError:
+        with open(file_name, mode="ab") as f:
+            pl.from_dict(trial_dict).write_csv(f)

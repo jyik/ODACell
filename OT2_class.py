@@ -91,47 +91,47 @@ class OT2:
     def prepare_electrolyte(self, stock_vol, electrolyte_location):
         
         #example stock_vol = [('0', 100), ('1', 200), ('2', 300)]
-
-        [stock_vol.pop(i) for i,stock in enumerate(stock_vol) if stock[1] == 0]
-        if all(20<=i[1]<=1800 for i in stock_vol):
-            print("OT 2 preparing electrolyte...")
+        stock_vol = [(key, value) for key, value in stock_vol if value != 0.0]
+        print("OT 2 preparing electrolyte...")
+        print(stock_vol)
+        if all(19.999<=i[1]<=1800.0 for i in stock_vol):
             final_stock = stock_vol.pop()
             for well, vol in stock_vol:
-                if 20 <= vol <= 300:
+                if 20.0 <= vol <= 300.0:
                     self.RawInput("pipette_right.pick_up_tip(s_tiprack.wells()["+str(self.small_tip_index)+"])")
                     self.RawInput("pipette_right.transfer("+str(round(vol, 2))+", stock_solutions.wells()["+str(well)+"], "+electrolyte_location+", new_tip='never')")
                     self.RawInput("pipette_right.drop_tip()")
                     self.small_tip_index += 1
-                elif 300 < vol <= 1000:
+                elif 300.0 < vol <= 1000.0:
                     self.RawInput("pipette_left.pick_up_tip(l_tiprack.wells()["+str(self.large_tip_index)+"])")
                     self.RawInput("pipette_left.transfer("+str(round(vol, 2))+", stock_solutions.wells()["+str(well)+"], "+electrolyte_location+", new_tip='never')")
                     self.RawInput("pipette_left.drop_tip()")
                     self.large_tip_index += 1
-                elif vol > 1000:
-                    if (vol - 900) < 20:
+                elif vol > 1000.0:
+                    if (vol - 900.0) < 20.0:
                         stock_vol.append((well, 800))
                         stock_vol.append((well, vol-800))
                     else:
                         stock_vol.append((well, 900))
                         stock_vol.append((well, vol-900))
                     
-            if 20 <= final_stock[1] <= 300:
+            if 20.0 <= final_stock[1] <= 300.0:
                 self.RawInput("pipette_right.pick_up_tip(s_tiprack.wells()["+str(self.small_tip_index)+"])")
                 self.RawInput("pipette_right.transfer("+str(round(final_stock[1], 2))+", stock_solutions.wells()["+str(final_stock[0])+"], "+electrolyte_location+", new_tip='never',  mix_after=(20,275))")
                 self.RawInput("pipette_right.drop_tip()")
                 self.small_tip_index += 1
-            elif 300 < final_stock[1] <= 1000:
+            elif 300.0 < final_stock[1] <= 1000.0:
                 self.RawInput("pipette_left.pick_up_tip(l_tiprack.wells()["+str(self.large_tip_index)+"])")
                 self.RawInput("pipette_left.transfer("+str(round(final_stock[1], 2))+", stock_solutions.wells()["+str(final_stock[0])+"], "+electrolyte_location+", new_tip='never', mix_after=(20,800))")
                 self.RawInput("pipette_left.drop_tip()")
                 self.large_tip_index += 1
-            elif final_stock[1] > 1000:
-                if (final_stock[1] - 900) < 20:
+            elif final_stock[1] > 1000.0:
+                if (final_stock[1] - 900.0) < 20.0:
                     self.RawInput("pipette_left.pick_up_tip(l_tiprack.wells()["+str(self.large_tip_index)+"])")
                     self.RawInput("pipette_left.transfer("+str(800)+", stock_solutions.wells()["+str(final_stock[0])+"], "+electrolyte_location+", new_tip='never')")
                     self.RawInput("pipette_left.drop_tip()")
                     self.large_tip_index += 1
-                    if (final_stock[1] - 800) <= 300:
+                    if (final_stock[1] - 800.0) <= 300.0:
                         self.RawInput("pipette_right.pick_up_tip(s_tiprack.wells()["+str(self.small_tip_index)+"])")
                         self.RawInput("pipette_right.transfer("+str(round(final_stock[1]-800, 2))+", stock_solutions.wells()["+str(final_stock[0])+"], "+electrolyte_location+", new_tip='never',  mix_after=(20,275))")
                         self.RawInput("pipette_right.drop_tip()")
@@ -146,7 +146,7 @@ class OT2:
                     self.RawInput("pipette_left.transfer("+str(900)+", stock_solutions.wells()["+str(final_stock[0])+"], "+electrolyte_location+", new_tip='never')")
                     self.RawInput("pipette_left.drop_tip()")
                     self.large_tip_index += 1
-                    if (final_stock[1] - 900) <= 300:
+                    if (final_stock[1] - 900.0) <= 300.0:
                         self.RawInput("pipette_right.pick_up_tip(s_tiprack.wells()["+str(self.small_tip_index)+"])")
                         self.RawInput("pipette_right.transfer("+str(round(final_stock[1]-900, 2))+", stock_solutions.wells()["+str(final_stock[0])+"], "+electrolyte_location+", new_tip='never',  mix_after=(20,275))")
                         self.RawInput("pipette_right.drop_tip()")

@@ -245,14 +245,18 @@ def get_trial_id(name_id):
     con.close()
     return client_trial
 
-def water_mol_ratio(name_id):
+def aq_solv_percent(name_id):
     con = duckdb.connect(database_name)
     elec_id = con.execute("SELECT Electrolyte_ID FROM coinCells WHERE ID = ?", [name_id]).fetchone()[0]
     h20_comp = con.execute("SELECT Material_mol FROM electrolyteComp WHERE Electrolyte_ID = ? AND LOWER(Material_Name) = 'h2o'", [elec_id]).fetchall()
     mol_h2o = sum([i[0] for i in h20_comp])
-    non_aq_solvent_list = ['dmso', 'acetonitrile', 'trimethyl phosphate']
-    non_aq_str = '('+' OR '.join(["LOWER(Material_Name) = '"+i+"'" for i in non_aq_solvent_list])+')'
-    non_aq_comp = con.execute("SELECT Material_mol FROM electrolyteComp WHERE Electrolyte_ID = ? AND "+non_aq_str, [elec_id]).fetchall()
-    mol_nonaq = sum([i[0] for i in non_aq_comp])
+    #non_aq_solvent_list = ['dmso', 'acetonitrile', 'trimethyl phosphate']
+    solvents_list = ['dmso', 'acetonitrile', 'trimethyl phosphate', 'h2o']
+    #non_aq_str = '('+' OR '.join(["LOWER(Material_Name) = '"+i+"'" for i in non_aq_solvent_list])+')'
+    solvents_str = '('+' OR '.join(["LOWER(Material_Name) = '"+i+"'" for i in solvents_list])+')'
+    #non_aq_comp = con.execute("SELECT Material_mol FROM electrolyteComp WHERE Electrolyte_ID = ? AND "+non_aq_str, [elec_id]).fetchall()
+    solvents_comp = con.execute("SELECT Material_mol FROM electrolyteComp WHERE Electrolyte_ID = ? AND "+solvents_str, [elec_id]).fetchall()
+    #mol_nonaq = sum([i[0] for i in non_aq_comp])
+    mol_solvents = sum([i[0] for i in solvents_comp])
     con.close()
-    return mol_h2o/mol_nonaq
+    return mol_h2o/mol_solvents

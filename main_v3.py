@@ -1,4 +1,4 @@
-from database_functions import get_electrolyte, dispense_electrolyte, get_job, change_coinCell_status, volConc_to_mol, add_coinCell, get_trial_id, water_mol_ratio
+from database_functions import get_electrolyte, dispense_electrolyte, get_job, change_coinCell_status, volConc_to_mol, add_coinCell, get_trial_id, aq_solv_percent
 
 import pickle
 import random
@@ -6,7 +6,7 @@ import duckdb
 from dobbie_crimp import D_CRIMP
 from dobbie_grip import D_GRIP
 from OT2_class import OT2
-from background_processes import worker, live_status_updater, cycler_status
+from background_processes import worker, live_status_updater, cycler_status, trial_saver, myround
 from server_connection import send
 from odacell_states import Trackables
 import time
@@ -99,7 +99,7 @@ def removeCell(rest_of_cmds):
     opt_client, opt_trial = get_trial_id(name_id)
     returnMsg = send('C exportCelldata '+name_id)
     returnMsg = send('C stopCell '+name_id)
-    returnMsg = send('C registerResults '+name_id+' '+str(opt_trial)+' '+str(water_mol_ratio(name_id)))
+    returnMsg = send('C registerResults '+name_id+' '+str(opt_trial)+' '+str(aq_solv_percent(name_id)))
     change_coinCell_status(3, name_id)
     dgrip.remove_from_cycler('Cycling Station '+toremove_cycler_id)
 
@@ -125,7 +125,7 @@ def assembleCell(rest_of_cmds):
             print('Cannot make specified electrolyte with current stock solutions.')
             change_coinCell_status(404, cell_id)
             return
-        if not well:
+        if not type(well) == int:
             print("No well associated with electrolyte, please check.")
             return
         returnMsg = send('C prepareCell '+cell_id)
@@ -198,15 +198,20 @@ def add_job(rest_of_cmds):
         electrode_ids = [1, 2]
         for trial in trials:
             components, trial_num = trial
-            wellVol_list = [(key[1],components[key]*20) for key in components]
+            sum_comps = sum(components.values())
+            components['x7_litfsi_h2o'] = 1250 - sum_comps
+            trial_saver(trial_num, components, optimizer+'.csv')
+            wellVol_list = [(key[1],myround(components[key])) for key in components]
+            print(wellVol_list)
             query_comp_list = volConc_to_mol(wellVol_list)
-            elec_id, well = get_electrolyte(track_objs.wellIndex_int, query_comp_list, round(sum(components.values())*20))
+            elec_id, well = get_electrolyte(track_objs.wellIndex_int, query_comp_list, sum([myround(components[i]) for i in components]))
             name_id = "{:05d}".format(random.randint(0,99999))
             if well == track_objs.wellIndex_int:
                 elec_mixing_queue[name_id] = [wellVol_list, well]
                 with open('elec_mixing_volumes.pkl', 'wb') as f:
                     pickle.dump(elec_mixing_queue, f)
             add_coinCell(name_id, elec_id, electrode_ids, trial_num, optimizer)
+            track_objs.wellIndex_int += 1
     except TypeError:
         print('canceled, no jobs added')
 
