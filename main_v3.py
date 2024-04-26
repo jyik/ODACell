@@ -78,11 +78,12 @@ def keyboard_input():
             otto.ssh_channel.send("exit()\n".encode())
             time.sleep(0.5)
             otto.ssh_channel.send("exit\n".encode())
+            otto.get_output()
             otto.ssh.close()
 
             dcrimp.dashboard.DO(10,0)
-            dcrimp.dashboard.DisableRobot()
-            dgrip.dashboard.DisableRobot()
+            #dcrimp.dashboard.DisableRobot()
+            #dgrip.dashboard.DisableRobot()
             dgrip.close()
             dcrimp.close()
             break
@@ -125,6 +126,8 @@ def assembleCell(rest_of_cmds):
             print('Cannot make specified electrolyte with current stock solutions.')
             change_coinCell_status(404, cell_id)
             return
+        except KeyError:
+            pass
         if not type(well) == int:
             print("No well associated with electrolyte, please check.")
             return
@@ -159,13 +162,13 @@ def assembleCell(rest_of_cmds):
             track_objs.numTrays.send('remove_one')
                     
         # start assemble cell process (blocking)
-        dcrimp.collect_pos_components(track_objs.rowID.current_state_value)
-        dgrip.collect_separator(track_objs.rowID.current_state_value)
+        dcrimp.collect_pos_components(track_objs.rowID.current_state_value, filename=cell_id)
+        dgrip.collect_separator(track_objs.rowID.current_state_value, filename=cell_id)
         dcrimp.get_electrolyte()
         otto.odacell_dispense_electrolyte("wellplate_odacell.wells()["+str(well)+"]", track_objs.electrolyte_vol_int, cell_id)
         dispense_electrolyte(elec_id, track_objs.electrolyte_vol_int)
         dcrimp.leave_otto()
-        dgrip.collect_neg_components(track_objs.rowID.current_state_value)
+        dgrip.collect_neg_components(track_objs.rowID.current_state_value, filename=cell_id)
         dcrimp.load_crimper()
         dcrimp.crimp()
         time.sleep(2)

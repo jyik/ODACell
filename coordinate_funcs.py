@@ -3,7 +3,7 @@ import numpy as np
 import duckdb
 
 
-def get_coords(for_robot, file_loc = r'C:\Users\renrum\Desktop\Coordinates\v2\coordinates.parquet'):
+def get_coords(for_robot, file_loc = r'C:\Users\renrum\Desktop\Coordinates\v4\coordinates.parquet'):
     """
     Loads relevant point locations for specific robots into a DuckDB relation.\n
     Inputs: \n
@@ -69,6 +69,13 @@ def movetoheight(pnt, z):
     else:
         print("Coordinate point is not a list [x,y,z,rx]")
 
-def excel_to_parquet(excel_filepath=r'C:\Users\renrum\Desktop\Coordinates\v2\coordinatesDB.xlsx'):
+def excel_to_parquet(excel_filepath=r'C:\Users\renrum\Desktop\Coordinates\v4\coordinatesDB.xlsx'):
     parquet_filepath = excel_filepath.split('.')[0]+'.parquet'
     pl.read_excel(excel_filepath).write_parquet(parquet_filepath)
+
+def pnt_offset(pnt, offset_list:list):
+    if len(pnt) == len(offset_list):
+        new_pnt = [pnt[i]+offset_list[i] for i in range(len(pnt))]
+        return new_pnt
+    else:
+        print("Point and Offset must have same dimensions. Set 0 for dimensions you don't want to change.")

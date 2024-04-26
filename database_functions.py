@@ -101,9 +101,10 @@ def get_electrolyte(current_well, query_component_list, total_vol):
         for electrolyte in results:
             test_list = con.execute("SELECT Material_ID, Material_Name, Material_mol FROM electrolyteComp WHERE Electrolyte_ID = ?", [electrolyte[0]]).fetchall()
             if set(test_list) == set(query_component_list):
-                id_well = con.execute("SELECT Electrolyte_ID, Well FROM electrolyteWells WHERE Electrolyte_ID = ?", [electrolyte[0]]).fetchone()
-                con.close()
-                return [*id_well]
+                id_well = con.execute("SELECT Electrolyte_ID, Well FROM electrolyteWells WHERE Electrolyte_ID = ? AND Active = TRUE", [electrolyte[0]]).fetchone()
+                if id_well:
+                    con.close()
+                    return [*id_well]
     if con.sql("SELECT MAX(Electrolyte_ID) FROM electrolyteWells").fetchall()[0][0]:
         elec_id = con.sql("SELECT MAX(Electrolyte_ID) FROM electrolyteWells").fetchall()[0][0] + 1
     else:

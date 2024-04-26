@@ -8,6 +8,7 @@ import numpy as np
 import time
 from dataclasses import dataclass
 from threading import Thread, Event
+from camera import take_img, find_outer_circle, cam_offset_to_robot
 
 
 @dataclass
@@ -34,7 +35,7 @@ class Dobot:
         self.feedback = DobotApi(ip_address, 30005)
         self.Stop_Event = Event() 
         self.set_feedback()
-        self.dashboard.EnableRobot()
+        #self.dashboard.EnableRobot()
         #self.dashboard.ClearError()
         # Set collision detection level
         #self.collision_level(3)
@@ -53,6 +54,7 @@ class Dobot:
         self.pos = Robot_Position(*[0.0, 0.0, 0.0, 0.0, 0.0])
         self.di = 0
         self.pos_theta = 0
+        self.robot_status = 1
         #create and start feedback thread
         thread = Thread(target=self.feedback_thread, args=([self.Stop_Event]))
         thread.setDaemon(True)
@@ -91,11 +93,12 @@ class Dobot:
                 self.pos.update_pos(a["tool_vector_actual"][0])
                 self.di = a["digital_input_bits"][0]
                 self.pos_theta = a["q_actual"][0][0]
+                self.robot_status = a["robot_mode"][0]
                 #print(self.di)
                 #print(self.pos)
-
+                #print(self.robot_status)
                 # check alarms
-                if a["robot_mode"] == 9:
+                if self.robot_status == 9:
                     print("error")
                     self.dashboard.ClearError()
                     self.dashboard.DisableRobot()
@@ -114,20 +117,28 @@ class Dobot:
         self.default_speed = speed
         print('default speed: {}'.format(self.default_speed))
 
-    def mov(self, mode, pnt, blocking=False):
+    def mov(self, mode, pnt, blocking=False, dynParams=None):
         """
         Move the Dobot to point defined by pnt.\n
         Inputs:\n
         mode (str 'j'/'l')-> 'j' for MovJ and 'l' for MovL\n
         pnt (list)-> list containing the coordinates for the point the Dobot moves to [X,Y,Z,Rx,Ry,Rz]\n
+        blocking (bol)-> whether to block the program until position is reached, i.e. do not run any code before the robot reaches the designated point\n
+        dynParams (tuple)-> tuple of extra parameters for MovJ/MovL functions, e.g. mov('j', pnt_example, blocking=False, dynParams=('CP=0',)) Note the comma after, very important for one parameter\n
         Output:\n
         none
         """
         if (isinstance(mode, str) and isinstance(pnt, (list, np.ndarray))):
             if mode.lower() == 'j':
-                self.command.MovJ(*pnt)
+                if dynParams:
+                    self.command.MovJ(*pnt, dynParams)
+                else:
+                    self.command.MovJ(*pnt)
             elif mode.lower() == 'l':
-                self.command.MovL(*pnt)
+                if dynParams:
+                    self.command.MovL(*pnt, dynParams)
+                else:
+                    self.command.MovL(*pnt)
             if blocking:
                 while True:
                     time.sleep(0.7)
@@ -137,6 +148,13 @@ class Dobot:
                         break
         else:
             print("Wrong arugment types")
+
+    def wait_arrive(self, pnt):
+        while True:
+            time.sleep(0.7)
+            pnt_distance = np.linalg.norm(np.array(self.pos.pos[:3])-np.array(pnt[:3]))
+            if pnt_distance < 1.0:
+                break
         
     def vacuum(self, isOn):
         """
@@ -170,7 +188,7 @@ class Dobot:
         else:
             return
         
-    def pick_n_place(self, pick_location, place_location, ref_h=105.0, intermediate_h=-77.0, pushdown=False, slowdown=False):
+    def pick_n_place(self, pick_location, place_location, ref_h=105.0, intermediate_h=-77.0, pushdown=False, slowdown=False, picture=False, picture_location=None, picture_fit_parms=((None, None, None), (None, None, None)), robot=None, filename=''):
         """
         Picks up a component from the component tray in working area and puts it into the cell holder position. Can be used more generally for different pickup and drop off locations.\n
         Inputs:\n
@@ -182,14 +200,14 @@ class Dobot:
         Output: \n
         none
         """
-
+        place_r = place_location[3]
         # move to above the component and then drop to above the working area tray
         self.mov('j', movetoheight(pick_location, ref_h))
         self.mov('l', movetoheight(pick_location, intermediate_h))
         # move to pickup component
         self.mov('l', pick_location)
         self.vacuum(True)
-        self.command.Sync()
+        self.wait_arrive(pick_location)
         time.sleep(1)
         self.dashboard.SpeedFactor(5)
         # move to above the component
@@ -197,23 +215,47 @@ class Dobot:
         # move to above the place location
         if not slowdown:
             self.dashboard.SpeedFactor(self.default_speed)
+        if picture:
+            self.mov('j', picture_location)
+            if pushdown:
+                self.command.RelMovL(0, 0, 1.2, 0)
+                self.wait_arrive(pnt_offset(picture_location, [0, 0, 1.2, 0]))
+            else:
+                self.wait_arrive(picture_location)
+            #self.command.Sync()
+            try:
+                filepath = take_img('btm', filename)
+                offset = find_outer_circle(filepath, picture_fit_parms[0][0], picture_fit_parms[0][1], picture_fit_parms[0][2], camera='btm')
+                adjustment = cam_offset_to_robot(offset, robot)
+                if np.linalg.norm(adjustment) < 1.9:
+                    place_location = [place_location[i]-adjustment[i] for i in range(len(adjustment))]
+            except:
+                print("Camera failed. Skipping...")
         self.mov('j', movetoheight(place_location, ref_h))
-        self.mov('l', place_location)
+        self.mov('l', place_location, blocking=True)
         self.dashboard.SpeedFactor(self.default_speed)
         if pushdown:
             self.vacuum(False)
             time.sleep(0.3)
-            self.command.RelMovL(0,0,-4.0)
-            time.sleep(0.3)
-            self.command.RelMovL(0,0,4.0)
+            self.command.RelMovL(0,0,-4.0,0)
+            #time.sleep(0.3)
+            #self.command.RelMovL(0,0,4.0,0)
         else:
             self.vacuum(False)
-        self.command.Sync()
-        time.sleep(1)
+        #self.command.Sync()
+        time.sleep(0.6)
         # after vacuum off, move up to reference height
-        self.mov('l', movetoheight(place_location, ref_h))
-        self.command.Sync()
-
+        self.mov('l', movetoheight(place_location, ref_h), blocking=True)
+        if picture:
+            self.mov('l', picture_location, blocking=True)
+            #self.command.Sync()
+            try:
+                filepath = take_img('top', filename)
+                find_outer_circle(filepath, picture_fit_parms[1][0], picture_fit_parms[1][1], picture_fit_parms[1][2], camera='top')
+            except:
+                print("Camera failed. Skipping...")
+            finally:
+                self.wait_arrive(picture_location)
 
     def load_working_area(self, num_trays, stack, ref_h=105.0):
         """
@@ -239,7 +281,7 @@ class Dobot:
         Moves the empty tray in the working area to the bin; clears empty tray from working area
         """
         Pick_loc = get_pnt('Working Tray Location', self.coord)
-        Pick_loc[2] -= 9.5 
+        Pick_loc[2] -= 8.3 
         Place_loc = get_pnt('Empty Tray Bin', self.coord)
         self.pick_n_place(pick_location=Pick_loc, place_location=Place_loc, ref_h=ref_h, intermediate_h=Pick_loc[2]+15.0, slowdown=True)
         
