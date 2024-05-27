@@ -46,6 +46,47 @@ def importCells(listLabels, listFilePath, include_start_rest=True, cycleState=Tr
     else:
         print("Error")
 
+def classify_file(file_path):
+    with open(file_path, 'r') as file:
+        first_line = file.readline()
+        if first_line.startswith('seqid,'):
+            return 'NEWARE'
+        else:
+            return 'ASTROL'
+
+def import_neware_data(listLabels, listFilePaths):
+    cycle_sep = ['cc', 'cccv', 'cv']
+    charge_steps = ['cc', 'cccv', 'cv']
+    discharge_steps = ['dc', 'cccd', 'dv']
+    am_mass = 0.00884 #grams
+    new_table = pd.DataFrame()
+    for n in range(len(listLabels)):
+        dbtable = pd.read_csv(listFilePaths[n], sep=',')
+        indices = dbtable.index[dbtable['testtime'] == 0].tolist()
+        start_index = indices[0]
+        cycle_id = 0
+        for i in range(len(indices)):
+            if dbtable.loc[indices[i], 'steptype'] in cycle_sep:
+                end_index = indices[i]
+                dbtable.loc[start_index:end_index, 'Cycle'] = cycle_id
+                start_index = indices[i]
+                cycle_id += 1
+        dbtable.loc[start_index:, 'Cycle'] = cycle_id
+        dbtable['Cycle'] = dbtable['Cycle'].astype('int64')
+    
+        features = dbtable.groupby(['Cycle', 'steptype'])['cap'].max().unstack()
+        features = features.reset_index()
+
+        C_present = [col for col in charge_steps if col in features.columns]
+        D_present = [col for col in discharge_steps if col in features.columns]
+
+        features['Charge Capacity [mAh/g]'] = (features[C_present].sum(axis=1)*1000)/am_mass
+        features['Discharge Capacity [mAh/g]'] = (features[D_present].sum(axis=1)*1000)/am_mass
+        features['CE'] = features['Discharge Capacity [mAh/g]']/features['Charge Capacity [mAh/g]']
+        features['Cell'] = listLabels[n]
+        new_table = pd.concat([new_table, features], axis=0)
+    return new_table
+
 
 def astrol_state_classifier(row, current_name):
     try: 
@@ -79,6 +120,7 @@ def dic_to_features(mydic):
         except:
             cell_table = pd.DataFrame(data={'Cell': [key]*len(cycles), 'Cycle': cycles, 'Charge Capacity [mAh/g]': charge_cap, 'Discharge Capacity [mAh/g]': discharge_cap, 'CE': coulombic_eff, 'Charge Energy Densiy [mWh/g]': [max(energy_density.values)*-1]*len(cycles), 'Discharge Energy Density [mWh/g]': [min(energy_density.values)*-1]*len(cycles)})
         new_table = pd.concat([new_table, cell_table], axis=0)
+        new_table['Cycle'] = new_table['Cycle'].astype('int64')
     return new_table
 
 def search_dir(cell_id, rootdir='C:\DATA'):
@@ -86,7 +128,7 @@ def search_dir(cell_id, rootdir='C:\DATA'):
         print("Please enter cell_id as a string.")
     else:
         matches = []
-        regex = re.compile('.*_'+str(cell_id)+'_.*.txt')
+        regex = re.compile('.*_'+str(cell_id)+'_.*\.(txt|csv)')
         for root, dirs, files in os.walk(rootdir):
             for file in files:
                 if regex.match(file):
@@ -94,14 +136,19 @@ def search_dir(cell_id, rootdir='C:\DATA'):
         return matches
 
 def get_features(cell_ids):
-    filenames = []
+    astrol_filenames = []
+    neware_filenames = []
     if isinstance(cell_ids, str):
         matches = search_dir(cell_ids)
         if len(matches) > 1:
             print('Duplicates found: \n')
             [print(i) for i in matches]
             print('Using first instance: '+ matches[0])
-        filenames.append(matches[0])
+        file_class = classify_file(matches[0])
+        if file_class == 'NEWARE':
+            neware_filenames.append(matches[0])
+        elif file_class == 'ASTROL':
+            astrol_filenames.append(matches[0])
     elif isinstance(cell_ids, list):
         for cell_id in cell_ids:
             matches = search_dir(cell_id)
@@ -109,10 +156,24 @@ def get_features(cell_ids):
                 print('Duplicates found: \n')
                 [print(i) for i in matches]
                 print('Using first instance: '+ matches[0])
-            filenames.append(matches[0])
-    local_dic = importCells([i.split('\\')[-1] for i in filenames], filenames, include_start_rest=False, cycleState=True)
-    all_features = dic_to_features(local_dic)
-    return all_features
+            file_class = classify_file(matches[0])
+            if file_class == 'NEWARE':
+                neware_filenames.append(matches[0])
+            elif file_class == 'ASTROL':
+                astrol_filenames.append(matches[0])
+    if astrol_filenames:
+        local_dic = importCells([i.split('\\')[-1] for i in astrol_filenames], astrol_filenames, include_start_rest=False, cycleState=True)
+        astrol_features = dic_to_features(local_dic)
+    if neware_filenames:
+        neware_features = import_neware_data([i.split('\\')[-1] for i in neware_filenames], neware_filenames)
+    try:
+        all_features = pd.concat([astrol_features, neware_features], ignore_index=True, join='inner')
+        return all_features
+    except NameError:
+        if astrol_filenames:
+            return astrol_features
+        elif neware_filenames:
+            return neware_features
 
 def get_CE(cell_ids, cycles=[6], avg=True):
     cycles_str = "Cycle == " + str(cycles[0])
@@ -128,13 +189,13 @@ def get_CE(cell_ids, cycles=[6], avg=True):
         return outputCE
     if len(outputCE):
         ce = outputCE.values[0]
-        if ce > 0.99998:
-            ce = 0.99998
+        if ce > 0.999998:
+            ce = 0.999998
         return logit(ce)
     else:
         raise ValueError
 
-def get_capacity(cell_ids, cycles=[6], avg=True, max_cap = 150.0, state='Discharge'):
+def get_capacity(cell_ids, cycles=[6], avg=True, max_cap = 170.0, state='Discharge'):
     cycles_str = "Cycle == " + str(cycles[0])
     if len(cycles) > 1:
         for i in range(1, len(cycles)):
@@ -148,7 +209,8 @@ def get_capacity(cell_ids, cycles=[6], avg=True, max_cap = 150.0, state='Dischar
         return outputEng
     if len(outputEng):
         cap = outputEng.values[0]/max_cap
-        if cap < 0.1:
+        if cap < 0.0000001:
+            print(cap)
             raise ValueError
         else:
             if cap >= 1.0:

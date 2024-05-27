@@ -20,7 +20,7 @@ import sys
 sys.path.append(r"C:\Users\renrum\Desktop\code\MyBOmain")
 sys.path.append(r"C:\Users\renrum\Desktop\code\MyBOmain\mybo")
 from mybo.interface import register_results, get_designs, cancel_trials
-AX_PATH = r"C:\Users\renrum\Desktop\code\MyBOmain\results\coSolv\coSolvents_20240110\DWIT\seed11"
+AX_PATH = r"C:\Users\renrum\Desktop\code\MyBOmain\results\coSolv\coSolvents_202405\DWIT\seed28"
 
 opt_output_dic = {'y0': 'coulombic_eff', 'y1': 'discharge_capacity', 'y2': 'aq_solvent_mol_percent'}
 
@@ -326,7 +326,7 @@ def worker():
             command = queue.pop(0)
             print(command)
             if command[0] == 'prepareCell':
-                file_template = 'cycling-file_aq_bo_2.mpr'
+                file_template = 'cycling-file_aq_bo_3.mpr'
                 if len(command[1].split()) == 1:
                     rand_name = command[1]
                     comments = 'no_additional_comments'
