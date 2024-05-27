@@ -9,20 +9,19 @@ import numpy as np
 import pandas as pd
 import time
 
-
+set_speed = 40
 
 
 class D_GRIP(Dobot):
     def __init__(self, ip_address):
         super().__init__(ip_address)
-        self.update_default_speed(20)
+        self.update_default_speed(set_speed)
         self.dashboard.SpeedFactor(self.default_speed)
-        if int(self.dashboard.RobotMode().split(',')[1][1]) == 4:
-            self.dashboard.EnableRobot()
         #component tray status
         self.tray_status = [0,0,0,0,0,0]
         # load coordinates - cell components, stacks, and cycler/slide
         self.coord = get_coords('Grip')
+        self.robot_id = 'grip'
 
     def update_coord(self):
         """
@@ -38,19 +37,15 @@ class D_GRIP(Dobot):
         self.mov('j', movetoheight(get_pnt('Dobie Grip Component Placement in Active Site', self.coord), ref_h))
         self.mov('l', get_pnt('Dobie Grip Component Placement in Active Site', self.coord))
         self.command.RelMovL(0,0,-2.0) # Offset if needed
-        self.dashboard.SpeedFactor(2)
         self.vacuum(True)
         self.wait_arrive(pnt_offset(get_pnt('Dobie Grip Component Placement in Active Site', self.coord),[0, 0, -2.0, 0]))
-        time.sleep(1)
-        self.mov('l', movetoheight(get_pnt('Dobie Grip Component Placement in Active Site', self.coord), ref_h), blocking=True)
-        self.dashboard.SpeedFactor(self.default_speed)
-        self.mov('j', movetoheight(get_pnt('Slide Drop Location', self.coord), ref_h), blocking=True)
-        self.dashboard.SpeedFactor(5)
-        self.mov('l', get_pnt('Slide Drop Location', self.coord), blocking=True)
         time.sleep(0.2)
+        self.mov('l', movetoheight(get_pnt('Dobie Grip Component Placement in Active Site', self.coord), ref_h), True, ("CP=5", "SpeedL=5"))
+        self.mov('j', movetoheight(get_pnt('Slide Drop Location', self.coord), ref_h), True, ("CP=100", "SpeedJ=100"))
+        self.mov('l', get_pnt('Slide Drop Location', self.coord), True)
+        time.sleep(0.1)
         self.vacuum(False)
-        self.dashboard.SpeedFactor(self.default_speed)
-        time.sleep(1)
+        time.sleep(0.5)
         #Corrector for slide - not to be confused with corrector function below
         self.mov('l', get_pnt('Slide Corrector 1', self.coord))
         self.mov('l', get_pnt('Slide Corrector 2', self.coord))
@@ -59,7 +54,7 @@ class D_GRIP(Dobot):
 
     def corrector(self):
         """
-        DEPRICATED
+        !!!DEPRICATED!!!
         Pushes the negative (anode) casing into place for crimping if it was dropped slightly off center.
         Performs 4 sets of pushing/dragging moves (edge to center).
         Points are defined in the excel file (same sheet as component locations).
@@ -114,7 +109,7 @@ class D_GRIP(Dobot):
         #self.command.Sync()
         time.sleep(0.5)
         self.grip()
-        time.sleep(1)
+        time.sleep(0.5)
         self.mov('l', movetoheight(get_pnt('Slide Pickup Location', self.coord), ref_h))
         cycler_pnt = get_pnt(cycler_id, self.coord)
         # move to above the specified cycler location
@@ -125,10 +120,10 @@ class D_GRIP(Dobot):
         self.grip(False)
         time.sleep(0.5)
         # move back up to above the specified cycler location
-        self.mov('l', movetoheight(cycler_pnt, ref_h), blocking=True)
+        self.mov('l', movetoheight(cycler_pnt, ref_h), True)
         #self.command.Sync()
         self.grip()
-        self.home()
+        self.mov('j', get_pnt("Dobie Grip Home", self.coord), True)
 
     def grip(self, state=True):
         if state:
@@ -159,7 +154,7 @@ class D_GRIP(Dobot):
         time.sleep(0.2)
         self.grip()
         self.command.RelMovL(0, 0, 15)
-        self.mov('j', get_pnt('Dobie Grip Home', self.coord), blocking=True)
+        self.mov('j', get_pnt('Dobie Grip Home', self.coord), True)
         #self.command.Sync()
         
     def collect_neg_components(self, row_id, ref_h=45.0, filename=''):
@@ -167,9 +162,9 @@ class D_GRIP(Dobot):
         self.pick_n_place(get_pnt('Cell {}: ano'.format(row_id), self.coord), place_pnt, ref_h, picture=True, picture_location=get_pnt('Dobie Grip Camera', self.coord), picture_fit_parms=((430, 445, 100), (260, 290, 100)), robot='grip', filename=filename)
         self.pick_n_place(get_pnt('Cell {}: space'.format(row_id), self.coord), place_pnt, ref_h, picture=True, picture_location=get_pnt('Dobie Grip Camera', self.coord), picture_fit_parms=((500, 545, 100), (260, 290, 100)), robot='grip', filename=filename)
         self.pick_n_place(get_pnt('Cell {}: N casing'.format(row_id), self.coord), place_pnt, ref_h, pushdown=True, picture=True, picture_location=get_pnt('Dobie Grip Camera', self.coord), picture_fit_parms=((645, 685, 100), (260, 290, 100)), robot='grip', filename=filename)
-        self.home()
+        self.mov('j', get_pnt('Dobie Grip Home', self.coord), True)
 
     def collect_separator(self, row_id, ref_h=45.0, filename=''):
         place_pnt = get_pnt('Dobie Grip Component Placement in Active Site', self.coord)
         self.pick_n_place(get_pnt('Cell {}: sep'.format(row_id), self.coord), place_pnt, ref_h, picture=True, picture_location=get_pnt('Dobie Grip Camera', self.coord), picture_fit_parms=((600, 700, 100), (260, 290, 100)), robot='grip', filename=filename)
-        self.home()
+        self.mov('j', get_pnt('Dobie Grip Home', self.coord), True)

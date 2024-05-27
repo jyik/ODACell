@@ -35,19 +35,12 @@ class Dobot:
         self.feedback = DobotApi(ip_address, 30005)
         self.Stop_Event = Event() 
         self.set_feedback()
-        #self.dashboard.EnableRobot()
-        #self.dashboard.ClearError()
-        # Set collision detection level
-        #self.collision_level(3)
-        #self.dashboard.EnableRobot()
-        #self.dashboard.User(0)
-        #self.dashboard.Tool(0)
-        ##self.homed_status = False
-        #self.default_speed = 25
-        #self.dashboard.SpeedFactor(self.default_speed)
-        #self.speed(self.default_speed)
+        self.dashboard.EnableRobot()
+        self.dashboard.ClearError()
+        self.camera_center_offset = np.array([0.0, 0.0, 0.0, 0.0])
+        self.robot_id = ""
+        #self.collision_level(3)        # Set collision detection level. If unset, it is equal to the level on software 
         
-
     def set_feedback(self):
         """Starts live feedback thread"""
         #Initialize position dataclass
@@ -61,7 +54,7 @@ class Dobot:
         thread.start()
     
     def feedback_thread(self, stop_event):
-        """Updates Dobot coordinates and other information every 5ms based on feedback port"""
+        """Updates Dobot coordinates and other information every 0.2s based on feedback port"""
         hasRead = 0
         print_counter = 0
         while not stop_event.is_set():
@@ -73,37 +66,22 @@ class Dobot:
                     data += temp
             hasRead = 0
             
-            a = np.frombuffer(data, dtype=MyType)
-            if hex((a['test_value'][0])) == '0x123456789abcdef':
+            self.feedInfo = np.frombuffer(data, dtype=MyType)
+            if hex((self.feedInfo['test_value'][0])) == '0x123456789abcdef':
             #other possible parameters to update; check Dobot Github for options
-                # print('tool_vector_actual',
-                #       np.around(a['tool_vector_actual'], decimals=4))
-                # print('q_actual', np.around(a['q_actual'], decimals=4))
 
-            # Refresh Properties
-                #self.label_feed_speed["text"] = a["speed_scaling"][0]
-                #self.label_robot_mode["text"] = LABEL_ROBOT_MODE[a["robot_mode"][0]]
-                #self.label_di_input["text"] = bin(a["digital_input_bits"][0])[
-                #    2:].rjust(64, '0')
-                #self.label_di_output["text"] = bin(a["digital_output_bits"][0])[
-                #    2:].rjust(64, '0')
+                self.pos.update_pos(self.feedInfo["tool_vector_actual"][0])
+                self.di = self.feedInfo["digital_input_bits"][0]
+                self.pos_theta = self.feedInfo["q_actual"][0][0]
+                self.robot_status = self.feedInfo["robot_mode"][0]
+                self.get_speed = self.feedInfo["speed_scaling"][0]
 
-            # Refresh coordinate points
-                #self.set_feed_joint(LABEL_JOINT, a["q_actual"])
-                self.pos.update_pos(a["tool_vector_actual"][0])
-                self.di = a["digital_input_bits"][0]
-                self.pos_theta = a["q_actual"][0][0]
-                self.robot_status = a["robot_mode"][0]
-                #print(self.di)
-                #print(self.pos)
-                #print(self.robot_status)
-                # check alarms
                 if self.robot_status == 9:
                     print("error")
                     self.dashboard.ClearError()
                     self.dashboard.DisableRobot()
 
-            time.sleep(0.15)
+            time.sleep(0.1)
 
     
     def update_default_speed(self, speed):
@@ -131,12 +109,12 @@ class Dobot:
         if (isinstance(mode, str) and isinstance(pnt, (list, np.ndarray))):
             if mode.lower() == 'j':
                 if dynParams:
-                    self.command.MovJ(*pnt, dynParams)
+                    self.command.MovJ(*pnt, *dynParams)
                 else:
                     self.command.MovJ(*pnt)
             elif mode.lower() == 'l':
                 if dynParams:
-                    self.command.MovL(*pnt, dynParams)
+                    self.command.MovL(*pnt, *dynParams)
                 else:
                     self.command.MovL(*pnt)
             if blocking:
@@ -153,6 +131,7 @@ class Dobot:
         while True:
             time.sleep(0.7)
             pnt_distance = np.linalg.norm(np.array(self.pos.pos[:3])-np.array(pnt[:3]))
+            #print(pnt_distance)
             if pnt_distance < 1.0:
                 break
         
@@ -200,6 +179,10 @@ class Dobot:
         Output: \n
         none
         """
+        if slowdown:
+            spd = 25
+        else:
+            spd = 100
         place_r = place_location[3]
         # move to above the component and then drop to above the working area tray
         self.mov('j', movetoheight(pick_location, ref_h))
@@ -208,15 +191,12 @@ class Dobot:
         self.mov('l', pick_location)
         self.vacuum(True)
         self.wait_arrive(pick_location)
-        time.sleep(1)
-        self.dashboard.SpeedFactor(5)
+        time.sleep(0.5)
         # move to above the component
-        self.mov('l', movetoheight(pick_location, ref_h))
+        self.mov('l', movetoheight(pick_location, ref_h), False, ("CP=80", "SpeedL={:d}".format(spd),))
         # move to above the place location
-        if not slowdown:
-            self.dashboard.SpeedFactor(self.default_speed)
         if picture:
-            self.mov('j', picture_location)
+            self.mov('j', picture_location, False, ("CP=80", "SpeedJ={:d}".format(spd),))
             if pushdown:
                 self.command.RelMovL(0, 0, 1.2, 0)
                 self.wait_arrive(pnt_offset(picture_location, [0, 0, 1.2, 0]))
@@ -226,24 +206,21 @@ class Dobot:
             try:
                 filepath = take_img('btm', filename)
                 offset = find_outer_circle(filepath, picture_fit_parms[0][0], picture_fit_parms[0][1], picture_fit_parms[0][2], camera='btm')
-                adjustment = cam_offset_to_robot(offset, robot)
+                adjustment = cam_offset_to_robot(offset, robot)*-1 - self.camera_center_offset
                 if np.linalg.norm(adjustment) < 1.9:
                     place_location = [place_location[i]-adjustment[i] for i in range(len(adjustment))]
             except:
                 print("Camera failed. Skipping...")
-        self.mov('j', movetoheight(place_location, ref_h))
-        self.mov('l', place_location, blocking=True)
-        self.dashboard.SpeedFactor(self.default_speed)
+        self.mov('j', movetoheight(place_location, ref_h), False, ("CP=80", "SpeedJ={:d}".format(spd)))
+        self.mov('l', place_location, True, ("CP=0", "SpeedL={:d}".format(spd)))
         if pushdown:
             self.vacuum(False)
-            time.sleep(0.3)
+            time.sleep(0.1)
             self.command.RelMovL(0,0,-4.0,0)
-            #time.sleep(0.3)
-            #self.command.RelMovL(0,0,4.0,0)
         else:
             self.vacuum(False)
         #self.command.Sync()
-        time.sleep(0.6)
+        time.sleep(0.2)
         # after vacuum off, move up to reference height
         self.mov('l', movetoheight(place_location, ref_h), blocking=True)
         if picture:
@@ -252,6 +229,9 @@ class Dobot:
             try:
                 filepath = take_img('top', filename)
                 find_outer_circle(filepath, picture_fit_parms[1][0], picture_fit_parms[1][1], picture_fit_parms[1][2], camera='top')
+                filepath = take_img('btm')
+                offset = find_outer_circle(filepath, 100, 300, 100, 'btm') # recenter camera reference offset
+                self.camera_center_offset = np.round(cam_offset_to_robot(offset, robot), decimals=2)*-1
             except:
                 print("Camera failed. Skipping...")
             finally:
@@ -285,10 +265,32 @@ class Dobot:
         Place_loc = get_pnt('Empty Tray Bin', self.coord)
         self.pick_n_place(pick_location=Pick_loc, place_location=Place_loc, ref_h=ref_h, intermediate_h=Pick_loc[2]+15.0, slowdown=True)
         
+    def offset_camera_center(self, robot='', cam='btm') -> None:
+        if not robot:
+            if self.robot_id.lower() == "grip":
+                robot = 'grip'
+            elif self.robot_id.lower() == "crimp":
+                robot = 'crimp'
+            else:
+                print("No robot ID detected, please use the robot arguement option.")
+                return
+        self.mov('j', get_pnt("Dobie "+robot.capitalize()+" Camera", self.coord), True)
+        try:
+            filepath = take_img(cam, "cam_centre_offset")
+            offset = find_outer_circle(filepath, 100, 300, 100, camera=cam)
+            self.camera_center_offset = np.round(cam_offset_to_robot(offset, robot), decimals=2)*-1
+        except:
+            print("Camera not working, camera center offset not updated.")
+        finally:
+            self.mov('j', get_pnt("Dobie "+robot.capitalize()+" Home", self.coord), True)
 
     def close(self):
+        self.dashboard.DisableRobot()
         self.command.close()
         self.dashboard.close()
         self.Stop_Event.set()
         time.sleep(0.2)
         self.feedback.close()
+
+    def __del__(self):
+        self.close()

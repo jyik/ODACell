@@ -604,8 +604,8 @@ class DobotApiDashboard(DobotApi):
         string = "LoadSwitch({:d}".format(offset1)+")"
         return self.sendRecvMsg(string)
 
-    def wait(self):
-        string = "wait()"
+    def wait(self, t):
+        string = "wait({:d})".format(t)
         return self.sendRecvMsg(string)
 
     def pause(self):
@@ -636,7 +636,6 @@ class DobotApiMove(DobotApi):
         for params in dynParams:
             string = string + "," + str(params)
         string = string + ")"
-        print(string)
         return self.sendRecvMsg(string)
 
     def MovL(self, x, y, z, rx, *dynParams):
@@ -654,7 +653,6 @@ class DobotApiMove(DobotApi):
         for params in dynParams:
             string = string + "," + str(params)
         string = string + ")"
-        print(string)
         return self.sendRecvMsg(string)
 
     def JointMovJ(self, j1, j2, j3, j4, *dynParams):

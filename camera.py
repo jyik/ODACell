@@ -127,7 +127,7 @@ def find_outer_circle(image_path, minrad, maxrad, mindis=100, camera=None, p1=15
     image = cv2.imread(image_path, cv2.IMREAD_COLOR)
     padded_crop = np.full(image.shape, 255, np.uint8)
     # Get Center ROI
-    crop_factor = 0.45
+    crop_factor = 0.5
     x_center = image.shape[0]//2
     y_center = image.shape[1]//2
     crop = int(crop_factor*y_center)
@@ -192,7 +192,7 @@ def find_outer_circle(image_path, minrad, maxrad, mindis=100, camera=None, p1=15
     else:
         print("No suitable circle found.")
 
-def cam_offset_to_robot(offset, robot:str)-> tuple:
+def cam_offset_to_robot(offset, robot:str)-> np.ndarray:
     if offset:
         scale = btm_cam_scale
         if robot.lower() == 'grip':

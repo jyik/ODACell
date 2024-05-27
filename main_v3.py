@@ -174,11 +174,11 @@ def assembleCell(rest_of_cmds):
         time.sleep(2)
         dcrimp.wait_crimper()
         dcrimp.unload_crimper()
-        dgrip.holder_to_slide()
-        dgrip.slide_to_cycler('Cycling Station '+cycler_id)
+        #dgrip.holder_to_slide()
+        #dgrip.slide_to_cycler('Cycling Station '+cycler_id)
         # get astrol to start cycling cell
-        returnMsg = send('C startCell '+cell_id)
-        dcrimp.home()
+        #returnMsg = send('C startCell '+cell_id)
+        #dcrimp.home()
         # if tray is empty (assembled cell from tray_row_id 3), take away empty tray, otherwise update tray_row_id 
         if track_objs.rowID.current_state_value == 4:
             dcrimp.emptytray_to_bin()
@@ -201,10 +201,11 @@ def add_job(rest_of_cmds):
         electrode_ids = [1, 2]
         for trial in trials:
             components, trial_num = trial
-            sum_comps = sum(components.values())
-            components['x7_litfsi_h2o'] = 1250 - sum_comps
-            trial_saver(trial_num, components, optimizer+'.csv')
             wellVol_list = [(key[1],myround(components[key])) for key in components]
+            last_vol = 1100 - sum([i[1] for i in wellVol_list])
+            wellVol_list.append(('7', last_vol if last_vol >= 0.0 else 0.0))
+            components['x7_litfsi_h2o'] = wellVol_list[-1][1]
+            trial_saver(trial_num, components, optimizer+'.csv')
             print(wellVol_list)
             query_comp_list = volConc_to_mol(wellVol_list)
             elec_id, well = get_electrolyte(track_objs.wellIndex_int, query_comp_list, sum([myround(components[i]) for i in components]))
@@ -270,6 +271,11 @@ worker1.add_cmnd({'removeCell': removeCell, 'assembleCell': assembleCell, 'addjo
 # Home Robots
 dcrimp.home()
 dgrip.home()
+dcrimp.offset_camera_center()
+dgrip.offset_camera_center()
+
+#dcrimp.offset_camera_center('Crimp')
+#dgrip.offset_camera_center('Grip')
 
 # Start software
 keyboardThread = threading.Thread(target=keyboard_input)
