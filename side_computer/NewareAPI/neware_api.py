@@ -83,7 +83,7 @@ class NewareAPI:
         """
         Send data to socket connection
         """
-        print(f"Sending:\n{string}")
+        #print(f"Sending:\n{string}")
         try:
             self.neware_socket.send(str.encode(string, 'utf-8'))
         except Exception as e:
@@ -103,7 +103,7 @@ class NewareAPI:
         except Exception as e:
             print(e)
         finally:
-            print(f'Received:\n{data_str}')
+            #print(f'Received:\n{data_str}')
             return data_str
 
     def sendRecvMsg(self, string):
@@ -167,6 +167,11 @@ class NewareAPI:
                 return rspns
         else:
             return rspns
+        
+    def get_chlstatus(self):
+        chlstatus_xml = self.chlStatus()
+        chlstatus_list = channellist(chlstatus_xml)
+        return chlstatus_list
 
     def inquireChl(self,chlid:str):
         cmd_string = u"""<?xml version="1.0" encoding="UTF-8" ?><bts version="1.0"><cmd>inquire</cmd>
@@ -267,3 +272,20 @@ class NewareAPI:
 
     def __del__(self):
         self.close()
+
+def channellist(chlStatus_result:str):
+    key_list = list(chl_mapping.keys())
+    val_list = list(chl_mapping.values())
+    status_list = []
+    pattern = r'devid="(\d+)" subdevid="(\d+)" chlid="(\d+)" reservepause="1">(\w+)</status>'
+    matches = re.findall(pattern, chlStatus_result.split('#')[-2])
+    for match in matches:
+        chl_val = [int(num) for num in match[0:3]]
+        chl_status = match[-1]
+        try:
+            position = val_list.index(chl_val)
+        except ValueError:
+            print("Could not find Neware Channel associated with {}. Skipping...".format(chl_val))
+            continue
+        status_list.append((key_list[position], chl_status))
+    return status_list
