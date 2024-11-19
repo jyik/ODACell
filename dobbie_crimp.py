@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import time
 
-set_speed = 50
+set_speed = 55
 
 class D_CRIMP(Dobot):
     def __init__(self, ip_address):

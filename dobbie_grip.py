@@ -9,7 +9,7 @@ import numpy as np
 import pandas as pd
 import time
 
-set_speed = 40
+set_speed = 50
 
 
 class D_GRIP(Dobot):
@@ -112,17 +112,20 @@ class D_GRIP(Dobot):
         time.sleep(0.5)
         self.mov('l', movetoheight(get_pnt('Slide Pickup Location', self.coord), ref_h))
         cycler_pnt = get_pnt(cycler_id, self.coord)
+        # move to cycler channels intermediate
+        self.mov('j', get_pnt('Cycling Channels Intermediate', self.coord))
         # move to above the specified cycler location
-        self.mov('j', movetoheight(cycler_pnt, ref_h))
+        self.mov('j', movetoheight(cycler_pnt, get_pnt('Cycling Channels Intermediate', self.coord)[2]))
         self.mov('l', cycler_pnt, blocking=True)
         #self.command.Sync()
         time.sleep(0.5)
         self.grip(False)
         time.sleep(0.5)
         # move back up to above the specified cycler location
-        self.mov('l', movetoheight(cycler_pnt, ref_h), True)
-        #self.command.Sync()
+        self.mov('l', movetoheight(cycler_pnt, get_pnt('Cycling Channels Intermediate', self.coord)[2]), True)
         self.grip()
+        self.mov('j', get_pnt('Cycling Channels Intermediate', self.coord))
+        #self.command.Sync()
         self.mov('j', get_pnt("Dobie Grip Home", self.coord), True)
 
     def grip(self, state=True):
@@ -139,16 +142,17 @@ class D_GRIP(Dobot):
         Output:\n
         none
         """
-        self.mov('j', movetoheight(get_pnt(cycler_id, self.coord), ref_h))
+        self.mov('j', get_pnt('Cycling Channels Intermediate', self.coord))
+        self.mov('j', movetoheight(get_pnt(cycler_id, self.coord), get_pnt('Cycling Channels Intermediate', self.coord)[2]))
         self.grip(False)
         self.mov('l', get_pnt(cycler_id, self.coord), blocking=True)
         #self.command.Sync()
-        time.sleep(1)
+        time.sleep(0.5)
         self.grip()
         time.sleep(0.75)
-        self.mov('l', movetoheight(get_pnt(cycler_id, self.coord), ref_h))
-        self.mov('j', movetoheight(get_pnt('Finished Cell Bin', self.coord), ref_h))
-        self.mov('l', get_pnt('Finished Cell Bin', self.coord), blocking=True)
+        self.mov('l', movetoheight(get_pnt(cycler_id, self.coord), get_pnt('Cycling Channels Intermediate', self.coord)[2]))
+        self.mov('l', movetoheight(get_pnt('Neware C40', self.coord), get_pnt('Cycling Channels Intermediate', self.coord)[2]+2))
+        self.mov('j', get_pnt('Finished Cell Bin', self.coord), blocking=True)
         self.grip(False)
         #self.command.Sync()
         time.sleep(0.2)
@@ -156,11 +160,11 @@ class D_GRIP(Dobot):
         self.command.RelMovL(0, 0, 15)
         self.mov('j', get_pnt('Dobie Grip Home', self.coord), True)
         #self.command.Sync()
-        
+
     def collect_neg_components(self, row_id, ref_h=45.0, filename=''):
         place_pnt = get_pnt('Dobie Grip Component Placement in Active Site', self.coord)
         self.pick_n_place(get_pnt('Cell {}: ano'.format(row_id), self.coord), place_pnt, ref_h, picture=True, picture_location=get_pnt('Dobie Grip Camera', self.coord), picture_fit_parms=((430, 445, 100), (260, 290, 100)), robot='grip', filename=filename)
-        self.pick_n_place(get_pnt('Cell {}: space'.format(row_id), self.coord), place_pnt, ref_h, picture=True, picture_location=get_pnt('Dobie Grip Camera', self.coord), picture_fit_parms=((500, 545, 100), (260, 290, 100)), robot='grip', filename=filename)
+        self.pick_n_place(get_pnt('Cell {}: space'.format(row_id), self.coord), place_pnt, ref_h, slowdown=True, picture=True, picture_location=get_pnt('Dobie Grip Camera', self.coord), picture_fit_parms=((500, 545, 100), (260, 290, 100)), robot='grip', filename=filename)
         self.pick_n_place(get_pnt('Cell {}: N casing'.format(row_id), self.coord), place_pnt, ref_h, pushdown=True, picture=True, picture_location=get_pnt('Dobie Grip Camera', self.coord), picture_fit_parms=((645, 685, 100), (260, 290, 100)), robot='grip', filename=filename)
         self.mov('j', get_pnt('Dobie Grip Home', self.coord), True)
 

@@ -8,7 +8,7 @@ import numpy as np
 import time
 from dataclasses import dataclass
 from threading import Thread, Event
-from camera import take_img, find_outer_circle, cam_offset_to_robot
+from camera import take_img, find_outer_circle, cam_offset_to_robot, find_latest_top_img, get_similarity
 
 
 @dataclass
@@ -175,12 +175,12 @@ class Dobot:
         place_location (list)-> list of [x,y,z,Rx]\n
         ref_h (float)-> value of z (height) that the robot will bring the picked up component before going to place location\n
         intermediate_h (float)-> value of z (height) just before pick up location that the robot will go to (at default/full speed) before slowing down to pick up component\n
-        pushdown (Boolean)-> True = will push down by 4 units (mm) after placing component, False = no push down after placing component\n
+        pushdown (Boolean)-> True = will push down by 3.5 units (mm) after placing component, False = no push down after placing component\n
         Output: \n
         none
         """
         if slowdown:
-            spd = 25
+            spd = 20
         else:
             spd = 100
         place_r = place_location[3]
@@ -216,7 +216,7 @@ class Dobot:
         if pushdown:
             self.vacuum(False)
             time.sleep(0.1)
-            self.command.RelMovL(0,0,-4.0,0)
+            self.command.RelMovL(0,0,-3.5,0)
         else:
             self.vacuum(False)
         #self.command.Sync()
@@ -228,6 +228,14 @@ class Dobot:
             #self.command.Sync()
             try:
                 filepath = take_img('top', filename)
+                previous_top_img = find_latest_top_img(filepath)
+                if previous_top_img:
+                    similatiry_score = get_similarity(filepath, previous_top_img)
+                    if similatiry_score < 100:
+                        print('Possible missing component detected. Continue? (y/n, default y)')
+                        response = input('')
+                        if 'n' in response.lower():
+                            raise Exception
                 find_outer_circle(filepath, picture_fit_parms[1][0], picture_fit_parms[1][1], picture_fit_parms[1][2], camera='top')
                 filepath = take_img('btm')
                 offset = find_outer_circle(filepath, 100, 300, 100, 'btm') # recenter camera reference offset

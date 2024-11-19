@@ -40,6 +40,9 @@ def updateStock(rest_of_cmd):
 
 def add_newMaterial(rest_of_cmd):
     add_new_material()
+def listCells(rest_of_cmd):
+    returnMsg = send('Q listCells')
+    print(returnMsg)
 
 # Create worker commands dictionary
 cmnds = {
@@ -51,6 +54,7 @@ cmnds = {
     'printTable': printTable,
     'updateStock': updateStock,
     'newMaterial': add_newMaterial,
+    'listCells': listCells,
 }
 
 # Define worker class
@@ -84,7 +88,30 @@ def live_status_updater(track_objs, otto, Queue):
         # Check and Update trackables:
         # available channels
         listofcells = send('Q listCells')
-        availableCapacity = 16 - len(listofcells)
+        try:
+            neware_chls = [i for i in listofcells if type(i) == tuple]
+            neware_chls = cycler_status(neware_chls, 'neware')
+            chl = neware_chls.filter((pl.col('State') == 'finish') & (pl.col('Occupied') == True)).first().collect()['Neware Channel'][0]
+            #Queue.append('removeCell '+chl)
+            #neware_chls = neware_chls.with_columns(pl.when(pl.col("Neware Channel") == chl).then(False).otherwise(pl.col("Occupied")).alias("Occupied"))
+        except pl.ComputeError:
+            pass
+        try:
+            old_neware_stat = pl.scan_parquet('Neware_cycler_state.parquet').with_columns(pl.col('Neware Channel').cast(pl.Utf8)).collect()
+            new_neware_stat = neware_chls.with_columns(pl.col('Neware Channel').cast(pl.Utf8)).collect()
+        except pl.ComputeError:
+            continue
+        if not old_neware_stat.frame_equal(new_neware_stat):
+            neware_chls.collect().write_parquet('Neware_cycler_state.parquet')
+
+        availableCapacity_neware = len(neware_chls.filter((pl.col('State') == 'finish') & (pl.col('Occupied') == False)).collect())
+        ## Astrol Commands
+        astrol_chls = [i for i in listofcells if type(i) == str]
+        availableCapacity_astrol = 0
+        # availableCapacity_astrol = 16 - len(astrol_chls)
+        availableCapacity = availableCapacity_astrol + availableCapacity_neware
+
+
         if (availableCapacity == 0 and track_objs.CyclingState.current_state_value == 1) | (availableCapacity != 0 and track_objs.CyclingState.current_state_value == 0):
             track_objs.CyclingState.cycle()
         # pipette tips
@@ -97,33 +124,45 @@ def live_status_updater(track_objs, otto, Queue):
         
         # Check and Update Available Astrol Channels
         
-        # check for finished cells
-        cycler_stat = cycler_status(listofcells)
-        temp_finished = duckdb.execute("SELECT Name, CyclerSlot FROM cycler_stat WHERE Status = 'Finished'").fetchall()
-        if len(temp_finished):
-            for (name_id, toremove_cycler_id) in temp_finished:
-                if name_id+' ' not in finished_str:
-                    Queue.append('removeCell '+name_id+' '+toremove_cycler_id)
-                    finished_str += name_id+' '
-                if len(finished_str) > 50:
-                    finished_str = finished_str[-6:]
+        # check for finished astrol cells
+        #cycler_stat = cycler_status(astrol_chls, 'astrol')
+        #temp_finished = duckdb.execute("SELECT Name, CyclerSlot FROM cycler_stat WHERE Status = 'Finished'").fetchall()
+        #if len(temp_finished):
+        #    for (name_id, toremove_cycler_id) in temp_finished:
+            # need finished_str so that the function does not continuously add the removeCell command while the robot is removing the cell.
+        #        if name_id+' ' not in finished_str:
+        #            Queue.append('removeCell '+name_id+' '+toremove_cycler_id)
+        #            finished_str += name_id+' '
+        #        if len(finished_str) > 50:
+        #            finished_str = finished_str[-6:]
         time.sleep(3)
 
-def cycler_status(listofCells):
-    nam = []
-    chan = []
-    stat = []
-    for cell in listofCells:
-        cellList = re.split(r"\(Astrol1.|\)", cell)
-        nam.append(cellList[0][:-1])
-        chan.append(cellList[1][1:].replace('.','-'))
-        stat.append(cellList[2][1:])
-    if chan:
-        cycler_status = pl.DataFrame({'CyclerSlot': [str(a)+'-'+str(b) for a in range(2) for b in range(1,9)]})
-        cycler_status = cycler_status.join(pl.DataFrame({'CyclerSlot': chan, 'Name': nam, 'Status': stat}), on='CyclerSlot', how='left')
-    else:
-        cycler_status = pl.DataFrame({'CyclerSlot': [str(a)+'-'+str(b) for a in range(2) for b in range(1,9)], 'Name': None, 'Status': None}, schema=[('CyclerSlot', pl.Utf8), ('Name', pl.Utf8), ('Status', pl.Utf8)])
-    return cycler_status
+def cycler_status(listofCells, cycler='astrol'):
+    if cycler.lower() == 'astrol':
+        nam = []
+        chan = []
+        stat = []
+        for cell in listofCells:
+            cellList = re.split(r"\(Astrol1.|\)", cell)
+            nam.append(cellList[0][:-1])
+            chan.append(cellList[1][1:].replace('.','-'))
+            stat.append(cellList[2][1:])
+        if chan:
+            cycler_status = pl.DataFrame({'CyclerSlot': [str(a)+'-'+str(b) for a in range(2) for b in range(1,9)]})
+            cycler_status = cycler_status.join(pl.DataFrame({'CyclerSlot': chan, 'Name': nam, 'Status': stat}), on='CyclerSlot', how='left')
+        else:
+            cycler_status = pl.DataFrame({'CyclerSlot': [str(a)+'-'+str(b) for a in range(2) for b in range(1,9)], 'Name': None, 'Status': None}, schema=[('CyclerSlot', pl.Utf8), ('Name', pl.Utf8), ('Status', pl.Utf8)])
+        return cycler_status
+    elif cycler.lower() == 'neware':
+        pl_lf = pl.DataFrame(listofCells, schema=['Neware Channel', 'State'], orient='row').lazy()
+        try:
+            previous_state_lf = pl.scan_parquet('Neware_cycler_state.parquet')
+        except FileNotFoundError:
+            #TO DO: create file if not found
+            pass
+        pl_lf = pl_lf.join(previous_state_lf.select(['Neware Channel', 'Occupied']), on='Neware Channel')
+        return pl_lf
+
 
 def myround(x, base=20.0):
     return base * round(x/base)

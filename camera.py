@@ -1,14 +1,11 @@
-'''
-A simple Program for grabing video from basler camera and converting it to opencv img.
-Tested on Basler acA1300-200uc (USB3, linux 64bit , python 3.5)
 
-'''
 from pypylon import pylon
 import platform
 import cv2
 import os
 from datetime import datetime
 import numpy as np
+import re
 
 top_cam_srl = '24335316' # acA2500-14uc
 btm_cam_srl = '40310345' # a2A3840-45ucBAS
@@ -18,11 +15,11 @@ btm_cam_ref = (1888, 972)
 top_cam_scale = 35.93 #pixel/mm
 btm_cam_scale = 67.2 #pixel/mm
 
-def take_img(camera: str, filename='', save_dir=None):
+def take_img(cam: str, filename='', save_dir=None):
     try:
-        if camera.lower() == 'top':
+        if cam.lower() == 'top':
             camera_srl = top_cam_srl
-        elif camera.lower() == 'btm':
+        elif cam.lower() == 'btm':
             camera_srl = btm_cam_srl
         di = pylon.DeviceInfo()
         di.SetSerialNumber(camera_srl)
@@ -37,6 +34,17 @@ def take_img(camera: str, filename='', save_dir=None):
 
         camera = pylon.InstantCamera(tlf.CreateDevice(devices[0]))
         camera.Open()
+        if cam.lower() == 'top':
+            camera.AutoTargetBrightness.Value = 0.3
+        elif cam.lower() == 'btm':
+            camera.AutoTargetBrightness.Value = 0.3
+        camera.AutoFunctionROISelector.Value = "ROI1"
+        camera.AutoFunctionROIUseBrightness.Value = True
+        camera.AutoFunctionROIUseWhiteBalance.Value = True
+        camera.BalanceWhiteAuto.Value = "Continuous"
+        camera.ExposureAuto.Value = "Continuous"
+        camera.GainAuto.Value = "Continuous"
+
         camera.StartGrabbing(pylon.GrabStrategy_LatestImageOnly)
 
         # Retrieve the next available image
@@ -47,7 +55,7 @@ def take_img(camera: str, filename='', save_dir=None):
         default_filename = datetime.today().strftime("%Y-%m-%d_%H-%M-%S")
 
         if filename:
-            filename += '_'+default_filename
+            filename += '_'+default_filename+'_'+cam.lower()
         else:
             filename = default_filename
         if platform.system() == 'Windows':
@@ -153,18 +161,18 @@ def find_outer_circle(image_path, minrad, maxrad, mindis=100, camera=None, p1=15
                 max_radius = radius
 
         # Draw the fitted circle on the original image
-        cv2.circle(image, (max_circle[0], max_circle[1]), max_radius, (0, 255, 0), 2)
-        cv2.line(image, (max_circle[0]-5, max_circle[1]), (max_circle[0]+5, max_circle[1]), (0, 255, 0), 2)
-        cv2.line(image, (max_circle[0], max_circle[1]-5), (max_circle[0], max_circle[1]+5), (0, 255, 0), 2)
+        cv2.circle(image, (max_circle[0], max_circle[1]), max_radius, (0, 255, 0), 10)
+        cv2.line(image, (max_circle[0]-5, max_circle[1]), (max_circle[0]+5, max_circle[1]), (0, 255, 0), 10)
+        cv2.line(image, (max_circle[0], max_circle[1]-5), (max_circle[0], max_circle[1]+5), (0, 255, 0), 10)
 
         # Draw ideal centerpoint on the original image if camera specified
         if camera:
             if camera.lower() == 'top':
-                cv2.line(image, (top_cam_ref[0]-10, top_cam_ref[1]), (top_cam_ref[0]+10, top_cam_ref[1]), (0, 0, 255), 2)
-                cv2.line(image, (top_cam_ref[0], top_cam_ref[1]-10), (top_cam_ref[0], top_cam_ref[1]+10), (0, 0, 255), 2)
+                cv2.line(image, (top_cam_ref[0]-10, top_cam_ref[1]), (top_cam_ref[0]+10, top_cam_ref[1]), (0, 0, 255), 10)
+                cv2.line(image, (top_cam_ref[0], top_cam_ref[1]-10), (top_cam_ref[0], top_cam_ref[1]+10), (0, 0, 255), 10)
             elif camera.lower() == 'btm':
-                cv2.line(image, (btm_cam_ref[0]-10, btm_cam_ref[1]), (btm_cam_ref[0]+10, btm_cam_ref[1]), (0, 0, 255), 2)
-                cv2.line(image, (btm_cam_ref[0], btm_cam_ref[1]-10), (btm_cam_ref[0], btm_cam_ref[1]+10), (0, 0, 255), 2)
+                cv2.line(image, (btm_cam_ref[0]-10, btm_cam_ref[1]), (btm_cam_ref[0]+10, btm_cam_ref[1]), (0, 0, 255), 10)
+                cv2.line(image, (btm_cam_ref[0], btm_cam_ref[1]-10), (btm_cam_ref[0], btm_cam_ref[1]+10), (0, 0, 255), 10)
 
         # Put text for fitted circle on the original image
         cv2.putText(image, f'Fitted Centerpoint: ({max_circle[0]}, {max_circle[1]})', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)
@@ -213,6 +221,80 @@ def cam_offset_to_robot(offset, robot:str)-> np.ndarray:
         return np.pad(np.round(robot_coord, decimals=2), (0, 2), 'constant')
     else:
         return np.pad(np.array([0.0, 0.0]), (0, 2), 'constant')
+
+def get_cam_temp(cam: str):
+    if cam.lower() == 'top':
+        camera_srl = top_cam_srl
+        print('top camera does not have temperature function')
+        return
+    elif cam.lower() == 'btm':
+        camera_srl = btm_cam_srl
+    di = pylon.DeviceInfo()
+    di.SetSerialNumber(camera_srl)
+
+        # Initialize the camera
+    tlf = pylon.TlFactory.GetInstance()
+    devices = tlf.EnumerateDevices([di,])
+
+    if not len(devices):
+        print(f"Camera not found.")
+        return
+
+    camera = pylon.InstantCamera(tlf.CreateDevice(devices[0]))
+    camera.Open()
+    d = camera.DeviceTemperature.Value
+    return d
+
+def find_latest_top_img(file_path):
+    file_directory, filename = file_path.rsplit('\\', 1)
+    filename_split = filename.split('.')[0].split('_')
+    if 'btm' in filename_split or 'fit' in filename_split:
+        print('passed')
+        pass
+    else:
+        prefix = filename_split[0]
+        ref_time = os.path.getmtime(file_path)
+        pattern = re.compile(r'^'+prefix+r'_.*_top\.jpg$')
+        matching_files = [f for f in os.listdir(file_directory) if pattern.match(f)]
+        check_files = []
+        check_times = []
+        for n in matching_files:
+            check_file = os.path.join(file_directory, n)
+            if os.path.isfile(check_file):
+                check_time = os.path.getmtime(check_file)
+                time_diff = check_time - ref_time
+                if time_diff < 0:
+                    check_files.append(check_file)
+                    check_times.append(abs(time_diff))
+        try:
+            closest_time_index = check_times.index(min(check_times))
+            return check_files[closest_time_index]
+        except ValueError:
+            pass
+
+
+def get_similarity(img1, img2):
+    def crop_img(image_path, crop_factor = 0.45):
+        """Crops an image starting from the center outward by the crop_factor"""
+        image = cv2.imread(image_path, cv2.IMREAD_COLOR)
+        padded_crop = np.full(image.shape, 255, np.uint8)
+        x_center = image.shape[0]//2
+        y_center = image.shape[1]//2
+        crop = int(crop_factor*y_center)
+        padded_crop[x_center-crop:x_center+crop, y_center-crop:y_center+crop] = image[x_center-crop:x_center+crop, y_center-crop:y_center+crop]
+        return padded_crop
+    def mse(imageA, imageB):
+        """Compute the Mean Squared Error (MSE) between two images."""
+        err = np.sum((imageA.astype("float") - imageB.astype("float")) ** 2)
+        err /= float(imageA.shape[0] * imageA.shape[1])
+        return err
+    
+    crop_first = crop_img(img1)
+    crop_second = crop_img(img2)
+    mse_value = (mse(crop_first[:, :, 0], crop_second[:, :, 0]) +
+                 mse(crop_first[:, :, 1], crop_second[:, :, 1]) +
+                 mse(crop_first[:, :, 2], crop_second[:, :, 2])) / 3
+    return mse_value
 
 #paths = take_img('btm')
 #print(paths)

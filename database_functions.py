@@ -1,6 +1,9 @@
 import duckdb
 from qt_ui import new_material_gui, add_job_gui, stock_solutions_gui
 import sys
+import polars as pl
+import random
+import pickle
 from PyQt5.QtWidgets import QApplication
 
 database_name = 'test.duckdb'
@@ -266,3 +269,53 @@ def aq_solv_percent(name_id):
         print("Cannot find Cell ID.")
     finally:
         con.close()
+
+def get_status(name_id):
+    try:
+        con = duckdb.connect(database_name)
+        status = con.execute("SELECT Status FROM coinCells WHERE ID = ?", [name_id]).fetchone()[0]
+        con.close()
+        return status
+    except TypeError:
+        print("Cannot find Cell ID.")
+    finally:
+        con.close()
+
+def get_well(name_id):
+    try:
+        con = duckdb.connect(database_name)
+        status = con.execute("SELECT t2.Well FROM coinCells AS t1 JOIN electrolyteWells AS t2 ON t1.Electrolyte_ID = t2.Electrolyte_ID WHERE t1.ID = ?", [name_id]).fetchone()[0]
+        con.close()
+        return status
+    except TypeError:
+        print("Cannot find Cell ID.")
+    finally:
+        con.close()
+
+def add_repeat(name_id, new_electrolyte=True):
+    try:
+        client, id = get_trial_id(name_id)
+        electrolyte_vols = pl.scan_csv(client+'.csv').filter(pl.col('trial') == id).collect()
+        electrolyte_vols = list(electrolyte_vols.row(0))[1:]
+        sum_electrolytes = sum(electrolyte_vols)
+        electrolyte_vols = [(str(i), n) for i,n in enumerate(electrolyte_vols)]
+
+        track_objs = pl.read_parquet('track_objs.parquet')
+        well_id = track_objs['wellIndex_int'][0]
+        with open('elec_mixing_volumes.pkl', 'rb') as f:
+            elec_mixing_queue = pickle.load(f)
+        new_id = "{:05d}".format(random.randint(0,99999))
+    
+        query_comp_list = volConc_to_mol(electrolyte_vols)
+        elec_id, well = get_electrolyte(well_id, query_comp_list, sum_electrolytes)
+        if new_electrolyte:
+            elec_mixing_queue[new_id] = [electrolyte_vols, well_id]
+        else:
+            elec_mixing_queue[new_id] = [electrolyte_vols, well_id]
+        track_objs = track_objs.with_columns((pl.col('wellIndex_int') + 1).alias('wellIndex_int'))
+        add_coinCell(new_id, elec_id, [1, 2], id, client+'-repeat')
+        track_objs.write_parquet('track_objs.parquet')
+        with open('elec_mixing_volumes.pkl', 'wb') as f:
+            pickle.dump(elec_mixing_queue, f)
+    except Exception as e:
+        print(e)

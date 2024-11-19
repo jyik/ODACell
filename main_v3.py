@@ -1,8 +1,7 @@
-from database_functions import get_electrolyte, dispense_electrolyte, get_job, change_coinCell_status, volConc_to_mol, add_coinCell, get_trial_id, aq_solv_percent
-
+from database_functions import get_electrolyte, dispense_electrolyte, get_job, change_coinCell_status, volConc_to_mol, add_coinCell, get_trial_id, aq_solv_percent, get_status, get_well
+import polars as pl
 import pickle
 import random
-import duckdb
 from dobbie_crimp import D_CRIMP
 from dobbie_grip import D_GRIP
 from OT2_class import OT2
@@ -96,14 +95,23 @@ def keyboard_input():
 # ---
 
 def removeCell(rest_of_cmds):
-    name_id, toremove_cycler_id = rest_of_cmds
-    opt_client, opt_trial = get_trial_id(name_id)
-    returnMsg = send('C exportCelldata '+name_id)
-    returnMsg = send('C stopCell '+name_id)
-    returnMsg = send('C registerResults '+name_id+' '+str(opt_trial)+' '+str(aq_solv_percent(name_id)))
-    change_coinCell_status(3, name_id)
-    dgrip.remove_from_cycler('Cycling Station '+toremove_cycler_id)
-
+    try:
+        toremove_cycler_id = rest_of_cmds[0]
+        name_id = send('Q cellID '+toremove_cycler_id)
+        opt_client, opt_trial = get_trial_id(name_id)
+        returnMsg = send('C exportCelldata '+toremove_cycler_id)
+        #returnMsg = send('C stopCell '+name_id)
+        returnMsg = send('C registerResults '+name_id+' '+str(opt_trial)+' '+str(aq_solv_percent(name_id)))
+        change_coinCell_status(3, name_id)
+        dgrip.remove_from_cycler('Neware C'+toremove_cycler_id)
+        pl.scan_parquet('Neware_cycler_state.parquet').with_columns(pl.when(pl.col("Neware Channel") == toremove_cycler_id).then(False).otherwise(pl.col("Occupied")).alias("Occupied")).collect().write_parquet('Neware_cycler_state.parquet')
+    except:
+        #Revert any changes
+        lzfm = pl.scan_parquet('Neware_cycler_state.parquet')
+        lzfm = lzfm.with_columns(pl.when(pl.col("Neware Channel") == rest_of_cmds[0]).then(True).otherwise(pl.col("Occupied")).alias("Occupied"))
+        df = lzfm.collect()
+        df.write_parquet('Neware_cycler_state.parquet')
+        raise Exception
 
 def assembleCell(rest_of_cmds):
     global elec_mixing_queue
@@ -131,25 +139,36 @@ def assembleCell(rest_of_cmds):
         if not type(well) == int:
             print("No well associated with electrolyte, please check.")
             return
-        returnMsg = send('C prepareCell '+cell_id)
+        #returnMsg = send('C prepareCell '+cell_id)
 
         # Make sure astrol has prepared cycler before continuing (sometimes astrol is bugged) - if wait for more than [sleep timer]*[prepare_cell_timer limit], cancel commad
         prepare_cell_timer = 0
         while True:
-            time.sleep(2.5)
             listofcells = send('Q listCells')
-            cycler_stat = cycler_status(listofcells)
+            neware_chls = [i for i in listofcells if type(i) == tuple]
+            neware_chls = cycler_status(neware_chls, 'neware')
+            astrol_chls = [i for i in listofcells if type(i) == str]
+            cycler_stat = cycler_status(astrol_chls, 'astrol')
             try:
-                # Get Cycler Holder ID for Gripper to place cell in correct cycling slot
-                cycler_id = duckdb.execute("SELECT CyclerSlot FROM cycler_stat WHERE Name = ?;", [cell_id]).fetchone()[0]
+                chl = neware_chls.filter((pl.col('State') == 'finish') & (pl.col('Occupied') == False)).first().collect()['Neware Channel'][0]
+                cycle_pos = 'Neware C'+chl
                 break
+            except pl.ComputeError:
+                # Get Cycler Holder ID for Gripper to place cell in correct cycling slot
+                #chl = duckdb.execute("SELECT CyclerSlot FROM cycler_stat WHERE Name = ?;", [cell_id]).fetchone()[0]
+                #astrol prepareCell command deprecated 
+                #break
+                print("Unable to create job on cycler; check cycler server")
+                return
             except TypeError:
                 prepare_cell_timer += 1
+                time.sleep(2.5)
             if prepare_cell_timer == 5:
                 print("Unable to create job on cycler; check cycler server")
                 return
         
         # if mass is specified in makeCell command (i.e. 'makeCell 1.57mg'), change active material mass in astrol
+        # DEPRECATED
         if rest_of_cmds:
             working_mass = rest_of_cmds[0]
             returnMsg = send('C changeMass '+cell_id+' '+working_mass)
@@ -174,19 +193,43 @@ def assembleCell(rest_of_cmds):
         time.sleep(2)
         dcrimp.wait_crimper()
         dcrimp.unload_crimper()
-        #dgrip.holder_to_slide()
-        #dgrip.slide_to_cycler('Cycling Station '+cycler_id)
-        # get astrol to start cycling cell
-        #returnMsg = send('C startCell '+cell_id)
-        #dcrimp.home()
+        dgrip.holder_to_slide()
+        dgrip.slide_to_cycler(cycle_pos)
+        # start cycling cell
+        returnMsg = send('C startCell '+cell_id+' '+chl)
+        dcrimp.home()
         # if tray is empty (assembled cell from tray_row_id 3), take away empty tray, otherwise update tray_row_id 
         if track_objs.rowID.current_state_value == 4:
             dcrimp.emptytray_to_bin()
             track_objs.working_area_loaded_int = 0
-        track_objs.rowID.send('change_row')       
+        track_objs.rowID.send('change_row')
         # update status in coinCells table
         change_coinCell_status(1, cell_id)
+        # update cycler holder status file
+        time.sleep(0.45)
+        pl.scan_parquet('Neware_cycler_state.parquet').with_columns(pl.when(pl.col("Neware Channel") == chl).then(True).otherwise(pl.col("Occupied")).alias("Occupied")).collect().write_parquet('Neware_cycler_state.parquet')
         print('Cell ID '+cell_id+' successfully assembled and is cycling')
+
+def prepare_electrolyte(rest_of_cmds):
+    global elec_mixing_queue
+    try:
+        for name_id in elec_mixing_queue.keys():
+            if get_status(name_id) == 0:
+                otto.prepare_electrolyte(elec_mixing_queue[name_id][0], "wellplate_odacell.wells()["+str(elec_mixing_queue[name_id][1])+"]")
+                print('Preparing/Mixing electrolyte for '+name_id+' in well '+str(elec_mixing_queue[name_id][1])+'.')
+                del elec_mixing_queue[name_id]
+                with open('elec_mixing_volumes.pkl', 'wb') as f:
+                    pickle.dump(elec_mixing_queue, f)
+                break
+    except TypeError:
+        print("No more jobs available; please add to list")
+        return
+    except ValueError:
+        print('Cannot make specified electrolyte with current stock solutions.')
+        change_coinCell_status(404, name_id)
+        return
+    except KeyError:
+        pass
 
 def add_job(rest_of_cmds):
     global elec_mixing_queue
@@ -266,7 +309,7 @@ def update(rest_of_cmd):
 
 
 #Add functions to worker
-worker1.add_cmnd({'removeCell': removeCell, 'assembleCell': assembleCell, 'addjob': add_job, 'update': update})
+worker1.add_cmnd({'removeCell': removeCell, 'assembleCell': assembleCell, 'addjob': add_job, 'update': update, 'prepareE': prepare_electrolyte})
 
 # Home Robots
 dcrimp.home()
