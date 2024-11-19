@@ -14,19 +14,20 @@ import shutil
 import shortuuid
 import random
 import pickle
-from data_analyzer import get_CE, get_capacity
+from data_analyzer import get_CE, get_capacity, search_dir
+from NewareAPI.neware_api import NewareAPI
 
 import sys
 sys.path.append(r"C:\Users\renrum\Desktop\code\MyBOmain")
 sys.path.append(r"C:\Users\renrum\Desktop\code\MyBOmain\mybo")
 from mybo.interface import register_results, get_designs, cancel_trials
-AX_PATH = r"C:\Users\renrum\Desktop\code\MyBOmain\results\coSolv\coSolvents_202405\DWIT\seed28"
+AX_PATH = r"C:\Users\renrum\Desktop\code\MyBOmain\results\coSolv\coSolvents_0508together\DWIT\seed1"
 
 opt_output_dic = {'y0': 'coulombic_eff', 'y1': 'discharge_capacity', 'y2': 'aq_solvent_mol_percent'}
 
 
 class batteryCycler:
-
+    # Class for Astrol cycler control
     def __init__(self):
         # Connect to main Astrol App and primary window
         self.astrolApp = Application(backend='win32').connect(title="Astrol Battery Cycler")
@@ -244,14 +245,29 @@ class batteryCycler:
         self.astrolApp.window(handle=find_window(title_re="Warning"))['&YesButton'].click()
         EditW.close()
         self.astrolApp.window(handle=find_window(title_re="Battery cycler - Measurement program and Data editor")).close()
-        
+
+
+def blank_file(name_id):
+    data_folder = 'C:'+os.sep+"DATA"+os.sep
+    date = datetime.today().strftime('%Y-%m-%d')
+    if not os.path.exists(data_folder+date):
+        os.makedirs(data_folder+date)
+    uniqeid = str(shortuuid.uuid())
+    new_file = data_folder+date+os.sep+date+"_"+name_id+"_"+uniqeid+".txt"
+    with open(new_file, 'a') as f:
+        f.close()
+
 """
 
 Main
 
 """
-# Start bcycler
+# Start bcycler (astrol)
 bcycler = batteryCycler()
+
+# Start Neware
+neware_ip = "192.168.1.251"
+neware = NewareAPI(neware_ip)
 
 # Queue initialisation
 queue = []
@@ -292,8 +308,9 @@ def handle_client(conn, addr):
         if typ == 'Q':
             # Querries are being replied to
             if req == 'availableCapacity':
-                returnMsg = bcycler.availableCapacity()
-                conn.send(returnMsg.encode(FORMAT))
+                print("doesn't work. Query commands sent through pickle")
+                #returnMsg = bcycler.availableCapacity()
+                #conn.send(returnMsg.encode(FORMAT))
             elif req == 'listCells':
                 returnMsg = pickle.dumps(ListCells)
                 conn.send(returnMsg)
@@ -302,6 +319,10 @@ def handle_client(conn, addr):
                 points = get_designs(int(num_points), client_path=AX_PATH)
                 returnMsg = pickle.dumps(points)
                 conn.send(returnMsg)
+            elif req == 'cellID':
+                chl = ac.split()[-1]
+                returnMsg = neware.inquireChl(chl)['barcode']
+                conn.send(pickle.dumps(returnMsg))
         elif typ == 'C':
             # Commands are being enqueued
             queue.append([req, ac])
@@ -321,6 +342,13 @@ def worker():
     """
     global ListCells
     while serverRunning:
+        try:
+            ListCells = bcycler.listCells()
+            ListCells.extend(neware.get_chlstatus())
+        except IndexError:
+            pass
+        except TypeError:
+            ListCells = []
         if len(queue) > 0:
             print("\nElement dequeued from queue:")
             command = queue.pop(0)
@@ -333,28 +361,37 @@ def worker():
                 else:
                     rand_name = command[1].split()[0]
                     comments = command[1].split(maxsplit=1)[1]
-                bcycler.prepareCell(file_template, rand_name, comments)
+                #bcycler.prepareCell(file_template, rand_name, comments)
             elif command[0] == 'startCell':
                 # Start cell
                 #rand_name = str(random.randint(0,9999))
-                rand_name = command[1]
+
+                rand_name = command[1].split()[0]
+                chl = command[1].split()[1]
                 # Start cell run
-                bcycler.startCellName(rand_name)
+                #bcycler.startCellName(rand_name)
+                blank_file(rand_name)
+                neware.startCell(chl, rand_name)
             elif command[0] == 'stopCell':
                 rand_name = command[1]
-                bcycler.stopCellName(rand_name)
+                #bcycler.stopCellName(rand_name)
             elif command[0] == 'stopAllCells':
-                bcycler.stopAllCells()
+                #bcycler.stopAllCells()
+                pass
             elif command[0] == 'exportCelldata':
-                rand_name = command[1]
-                bcycler.exportCelldata(rand_name)
+                cell_id_search = neware.inquireChl(command[1])['barcode']
+                file_path = search_dir(cell_id_search, restricted=True)[0]
+                neware.downloadData(command[1], file_path)
+                #bcycler.exportCelldata(rand_name)
             elif command[0] == 'changeMass':
-                if len(command[1].split()) == 1:
-                    print("not enough inputs: changeMass cell_id mass")
-                else:
-                    rand_name = command[1].split()[0]
-                    mass_change = command[1].split(maxsplit=1)[1]
-                    bcycler.changeMass(rand_name, mass_change)
+                #Astrol only command
+                #if len(command[1].split()) == 1:
+                #    print("not enough inputs: changeMass cell_id mass")
+                #else:
+                    #rand_name = command[1].split()[0]
+                    #mass_change = command[1].split(maxsplit=1)[1]
+                    #bcycler.changeMass(rand_name, mass_change)
+                pass
             elif command[0] == 'registerResults':
                 cell_id = command[1].split()[0]
                 trial_id = command[1].split()[1]
@@ -369,12 +406,7 @@ def worker():
                     cancel_trials([int(trial_id)], client_path=AX_PATH)
                     print('failed cell/trial.')
             print(command[0]+' exeuted!')
-        try:
-            ListCells = bcycler.listCells()
-        except IndexError:
-            pass
-        except TypeError:
-            ListCells = []
+        time.sleep(0.1)
     print('Worker is stopping.')
 
 workerThread = threading.Thread(target=worker)
