@@ -52,7 +52,7 @@ server.py
 
 In the ot2 directory, [cellholder_1_wellplate_120ul.json](./ot2/cellholder_1_wellplate_120ul.json) should be loaded in the OT2's custom labware and [startup.py](./ot2/startup.py) should be placed in the running directory of the OT2. main.py on the main computer executes startup.py on the OT2 once it is connected via SSH.
 ### Python Packages
-Main scripts were run using Python 3.9.7; *server.py* was run on a different computer with Python 3.10.1
+Both computers are runing Python 3.9.13
 The requirements.txt file contain a list of python packages used and their versions. Compatibility of other package versions is not guaranteed. For the Bayesian optimization, custom packages are used:
 - [botorch](https://github.com/hvarfner/botorch/tree/diversity)
 - [Ax](https://github.com/hvarfner/Ax)
