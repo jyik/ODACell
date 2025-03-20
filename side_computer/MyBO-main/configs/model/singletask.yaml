@@ -1,0 +1,4 @@
+name: singletask
+kwargs: 
+  is_fully_bayesian: False
+  prior: singletask

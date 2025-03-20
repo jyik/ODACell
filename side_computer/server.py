@@ -14,16 +14,16 @@ import shutil
 import shortuuid
 import random
 import pickle
-from data_analyzer import get_CE, get_capacity, search_dir
+from data_analyzer import get_CE, get_avgV, search_dir, get_Doverpotential
 from NewareAPI.neware_api import NewareAPI
 
 import sys
-sys.path.append(r"C:\Users\renrum\Desktop\code\MyBOmain")
-sys.path.append(r"C:\Users\renrum\Desktop\code\MyBOmain\mybo")
-from mybo.interface import register_results, get_designs, cancel_trials
-AX_PATH = r"C:\Users\renrum\Desktop\code\MyBOmain\results\coSolv\coSolvents_0508together\DWIT\seed1"
-
-opt_output_dic = {'y0': 'coulombic_eff', 'y1': 'discharge_capacity', 'y2': 'aq_solvent_mol_percent'}
+sys.path.append(r"C:\Users\renrum\Desktop\code\MyBO-main")
+sys.path.append(r"C:\Users\renrum\Desktop\code\MyBO-main\mybo")
+from mybo.interface import register_results, get_designs, cancel_trials, add_trial
+AX_PATH = r"C:\Users\renrum\Desktop\code\MyBO-main\results\20250313\ZnCuAdditives_20250313\NIPV\seed1"
+lower_lim = {'x0_ZnCl2': 0, 'x1_TU': 0.006, 'x2_MAP': 0.006, 'x3_SDS': 0.000093}
+opt_output_dic = {'y0': 'coulombic_eff', 'y1': 'delta_overpotential'}
 
 
 class batteryCycler:
@@ -168,23 +168,24 @@ class batteryCycler:
 
     def listCells(self):
         """
-        Returns list of measurements
+        Deprecated...Returns list of measurements
         """
         cellList = []
-        cell_items = self.astrolW.treeview1.item_count()
-        for i in range(cell_items-1):
-            cellList.append(str(bcycler.astrolW.treeview1.get_item([0, i]).text())+' '+self.getCellStatus(str(bcycler.astrolW.treeview1.get_item([0, i]).text()).split()[0]))
+        #cell_items = self.astrolW.treeview1.item_count()
+        #for i in range(cell_items-1):
+        #    cellList.append(str(bcycler.astrolW.treeview1.get_item([0, i]).text())+' '+self.getCellStatus(str(bcycler.astrolW.treeview1.get_item([0, i]).text()).split()[0]))
         return cellList
     
     def stopAllCells(self):
         """
-        StopCell function applied to every measurement
+        Deprecated. StopCell function applied to every measurement
         """
-        cell_items = self.astrolW.treeview1.item_count()-1
-        print('Stopping '+str(cell_items)+' cells')
-        for i in range(cell_items):
-            j=cell_items-i-1
-            self.stopCellName(str(bcycler.astrolW.treeview1.get_item([0, j]).text()).split()[0])
+        #cell_items = self.astrolW.treeview1.item_count()-1
+        #print('Stopping '+str(cell_items)+' cells')
+        #for i in range(cell_items):
+        #    j=cell_items-i-1
+        #    self.stopCellName(str(bcycler.astrolW.treeview1.get_item([0, j]).text()).split()[0])
+        return
     
     def exportCelldata(self, name):
         """
@@ -263,7 +264,7 @@ Main
 
 """
 # Start bcycler (astrol)
-bcycler = batteryCycler()
+#bcycler = batteryCycler()
 
 # Start Neware
 neware_ip = "192.168.1.251"
@@ -316,8 +317,18 @@ def handle_client(conn, addr):
                 conn.send(returnMsg)
             elif req == 'opt_get_designs':
                 num_points = ac.split()[-1]
-                points = get_designs(int(num_points), client_path=AX_PATH)
-                returnMsg = pickle.dumps(points)
+                points = get_designs(int(num_points), client_path=AX_PATH, save=False)
+                try:
+                    df = pd.read_csv(AX_PATH+'_run_GenMethod.csv')
+                except FileNotFoundError:
+                    df = pd.DataFrame([], columns=['trial_index', 'generation_method'])
+                updated_points = []
+                for p in points:
+                    df = pd.concat([df, pd.DataFrame([{'trial_index': p[1], 'generation_method': p[2]}])])
+                    updated_param = {key: (round(value,6) if value >= lower_lim[key] else 0.0) for key, value in p[0].items()}
+                    updated_points.append(add_trial(updated_param, client_path=AX_PATH))
+                df.to_csv(AX_PATH+'_run_GenMethod.csv', index=False)
+                returnMsg = pickle.dumps(updated_points)
                 conn.send(returnMsg)
             elif req == 'cellID':
                 chl = ac.split()[-1]
@@ -343,8 +354,10 @@ def worker():
     global ListCells
     while serverRunning:
         try:
-            ListCells = bcycler.listCells()
-            ListCells.extend(neware.get_chlstatus())
+            #ListCells = bcycler.listCells()
+            #ListCells.extend(neware.get_chlstatus())
+            ListCells = neware.get_chlstatus()
+
         except IndexError:
             pass
         except TypeError:
@@ -395,13 +408,12 @@ def worker():
             elif command[0] == 'registerResults':
                 cell_id = command[1].split()[0]
                 trial_id = command[1].split()[1]
-                mol_ratio = command[1].split()[2]
+                #mol_ratio = command[1].split()[2]
                 try:
-                    ce = get_CE(cell_id)
-                    cap_discharge = get_capacity(cell_id)
-                    print("CE = "+str(ce))
-                    print("Discharge Capacity = "+str(cap_discharge))
-                    register_results([({opt_output_dic['y0']: ce, opt_output_dic['y1']: cap_discharge, opt_output_dic['y2']: float(mol_ratio)}, int(trial_id))], client_path=AX_PATH)
+                    ce = get_CE(cell_id, [8, 9, 10])
+                    features = get_avgV(cell_id, cycles=[6, 7, 8, 9, 10], avg=False, state='Discharge')
+                    delta_op = get_Doverpotential([6, 7, 8, 9, 10], features['Discharge Mean Voltage [V]'].values)
+                    register_results([({opt_output_dic['y0']: ce, opt_output_dic['y1']: delta_op*1000}, int(trial_id))], client_path=AX_PATH)
                 except ValueError:
                     cancel_trials([int(trial_id)], client_path=AX_PATH)
                     print('failed cell/trial.')

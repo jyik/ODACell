@@ -1,12 +1,13 @@
 import duckdb
 from qt_ui import new_material_gui, add_job_gui, stock_solutions_gui
+#from background_processes import myround
 import sys
 import polars as pl
 import random
 import pickle
 from PyQt5.QtWidgets import QApplication
 
-database_name = 'test.duckdb'
+database_name = 'ZnCu_ZnCl-TU-SDS-NHP.duckdb'
 
 def create_DB():
     """
@@ -18,6 +19,7 @@ def create_DB():
         Status INTEGER NOT NULL DEFAULT 0, 
         ID VARCHAR(5) PRIMARY KEY CHECK(ID ~ '^[0-9]{5}$'), 
         Electrolyte_ID INTEGER, 
+        Solvent_Material_ID INTEGER,
         Electrode1_ID INTEGER, 
         Electrode2_ID INTEGER,
         Opt_Client VARCHAR(255),
@@ -32,14 +34,14 @@ def create_DB():
         Electrolyte_ID INTEGER,
         Material_Name VARCHAR(255),
         Material_ID INTEGER,
-        Material_mol DOUBLE)""")
+        Material_molar_conc DOUBLE)""")
         con.sql(r"""CREATE TABLE stockSolutions(
         wellPosition INTEGER,
         Solvent_Material_ID INTEGER,
         Solvent_Name VARCHAR(255),
         Component1_Material_ID INTEGER,
         Component1_Name VARCHAR(255), 
-        Component1_Conc_molal DOUBLE,
+        Component1_molar_conc DOUBLE,
         Density_gmL DOUBLE,
         Volume_uL DOUBLE)""")
     #   con.sql(r"""CREATE TABLE Electrodes(
@@ -53,11 +55,6 @@ def create_DB():
     #    areaCapacity_mAh_cm2 DOUBLE, 
     #    electrode_AM_mass_mg DOUBLE, 
     #    electrode_size_mm INTEGER)""")
-    #   con.sql(r"""CREATE TABLE Additives(
-    #    Electrolyte_ID INTEGER,
-    #    Material_ID INTEGER, 
-    #    Additive VARCHAR(255), 
-    #    Additive_Conc DOUBLE)""")
         con.sql(r"""CREATE TABLE Materials(
         Material_ID INTEGER PRIMARY KEY,
         Name VARCHAR(255),
@@ -92,17 +89,17 @@ def get_electrolyte(current_well, query_component_list, total_vol):
     """
     Given a component list (see below for acceptable format), returns the Electrolyte_ID and Well. If electrolyte does not exist, it creates it.\n
     Inputs:\n
-    current_well (int) -> next empty well incase electrolyte needs to be created\n
-    query_component_list (list) -> list of tuples for Material_ID, Material_Name, and number of moles of component, Material_mol, of the electrolyte. Example: [(1, 'test1', 2.1), (2, 'test2', 0.4), (3, 'test3', 1.2)]\n
+    current_well (int) -> next empty well in case electrolyte needs to be created\n
+    query_component_list (list) -> list of tuples for Material_ID, Material_Name, and molar concentration of component, Material_molar_conc, of the electrolyte. Example: [(1, 'test1', 2.1), (2, 'test2', 0.4), (3, 'test3', 1.2)]\n
     total_vol (int) -> if the electrolyte needs to be mixed, what will the volume inside the well be\n
     Outputs:\n
     elec_id_and_well (list) -> returns a list containing two integers, Electrolyte_ID and Well of the query component
     """
     con = duckdb.connect(database_name)
-    results = con.execute("SELECT Electrolyte_ID FROM electrolyteComp WHERE Material_ID = ? AND Material_Name = ? AND Material_mol = ?", query_component_list[0]).fetchall()
+    results = con.execute("SELECT Electrolyte_ID FROM electrolyteComp WHERE Material_ID = ? AND Material_Name = ? AND Material_molar_conc = ?", query_component_list[0]).fetchall()
     if results:
         for electrolyte in results:
-            test_list = con.execute("SELECT Material_ID, Material_Name, Material_mol FROM electrolyteComp WHERE Electrolyte_ID = ?", [electrolyte[0]]).fetchall()
+            test_list = con.execute("SELECT Material_ID, Material_Name, Material_molar_conc FROM electrolyteComp WHERE Electrolyte_ID = ?", [electrolyte[0]]).fetchall()
             if set(test_list) == set(query_component_list):
                 id_well = con.execute("SELECT Electrolyte_ID, Well FROM electrolyteWells WHERE Electrolyte_ID = ? AND Active = TRUE", [electrolyte[0]]).fetchone()
                 if id_well:
@@ -113,7 +110,7 @@ def get_electrolyte(current_well, query_component_list, total_vol):
     else:
         elec_id = 1
     con.execute("INSERT INTO electrolyteWells (Electrolyte_ID, Well, currentVolume) VALUES (?, ?, ?);", [elec_id, current_well, total_vol])
-    con.executemany("INSERT INTO electrolyteComp (Electrolyte_ID, Material_ID, Material_name, Material_mol) VALUES (?, ?, ?, ?)", [(elec_id,)+comp for comp in query_component_list])
+    con.executemany("INSERT INTO electrolyteComp (Electrolyte_ID, Material_ID, Material_name, Material_molar_conc) VALUES (?, ?, ?, ?)", [(elec_id,)+comp for comp in query_component_list])
     con.close()
     return [elec_id, current_well]
 
@@ -154,7 +151,7 @@ def add_new_material():
 
 def update_stock():
     """
-    Updates initial stock solutions for mixing. GUI based - only selects from existing materials from Materials table in the database.
+    Updates initial stock solutions for mixing. GUI based - only selects from existing materials from Materials table in the database. Use the add_new_material() function to add the desired materials before changing the stock solutions.
     """
     con = duckdb.connect(database_name)
     app = QApplication(sys.argv)
@@ -169,7 +166,7 @@ def print_table(tableName):
     """
     con = duckdb.connect(database_name)
     try:
-        print(con.execute("SELECT * FROM "+tableName).fetch_df().to_string())
+        con.table(tableName).show()
     except duckdb.CatalogException as e:
         print(e)
     finally:
@@ -185,31 +182,58 @@ def get_job():
     con.close()
     return cell_id, elec_id, well_id
 
-def get_mixing_volumes(init_molals, final_molals, molar_masses, densities, solvent_mass = 1.3):
+def get_mixing_volumes(stock_wells, final_molarConcs, well_volume = 1300, solvent_well='11'):
     """
     Calculates the volumes required to create an electrolyte.\n
     Inputs:\n
-    init_molals (list/iterable)-> list of stock concentrations in molal (m), e.g. [2.0, 0.5, 0.50]
-    final_molals (list/iterable)-> list of electrolyte component concentrations in molal. The first element is the conducting salt, the ones after are additives, e.g. [1.5, 0.02, 0.02]
-    molar_masses (list/iterable)-> list of stock molar masses of salt/additive corresponding to concentrations in g/mol, e.g. [106.39, 109.94, 68.946]
-    densities (list/iterable)-> list of stock densities in g/mL. The last element is the density of only solvent (no salt/additives, pure), e.g. [1.8, 1.13, 1.41, 1.00]
-    solvent_mass (float)-> grams (g) of solvent in the new electrlyte composition. Keep around 1.0, e.g. 0.95
+    stock_wells (list/iterable)-> list of strings that must be same length as init_molarConcs. Indicates which stock concentration corresponds to which well in the stock solutions well, e.g. ['0', '2', '3'] Note the final well, '11' is reserved for pure solvent.\n
+    final_molarConcs (list/iterable)-> list of desired electrolyte component molar concentrations in the final mixture. Length should be same as stock concentrations, e.g. [1.5, 0.02, 0.02]\n
+    well_volume (float)-> volume (uL) of the new electrlyte composition in the well. Keep below 1600 uL but above 1000 uL (since mixing is done with 1.0 mL by default), e.g. 1300\n
+    Outputs:\n
+    volumes_to_transfer (list/iterable)-> list of tuples with each well and volume (uL) from stock solutions needed to get desired concentrations, e.g.[('0', 100), ('1', 200), ('2', 300)]
     """
-    init_solvent_masses = [final_molal*solvent_mass/init_molal for final_molal, init_molal in zip(final_molals, init_molals)]
-    volumes_to_transfer = [(init_molal*molar_mass+1000)*init_solvent_mass/density/1000 for init_molal,molar_mass,init_solvent_mass,density in zip(init_molals, molar_masses, init_solvent_masses, densities[:-1])]
-    solvent_vol_to_transfer = (solvent_mass - sum(init_solvent_masses))/densities[-1]
+    # Check parameter lengths are the same
+    if len(final_molarConcs) != len(stock_wells):
+        print('Lengths of parameters do not match.')
+        raise ValueError
+    # Get initial molar concentrations of each stock solution
+    con = duckdb.connect(database_name)
+    init_molarConcs = [con.execute("SELECT Component1_molar_conc FROM stockSolutions WHERE wellPosition = ?", [w]).fetchone()[0] for w in stock_wells]
+    # Calculate desired volumes of each stock solution
+    volumes_to_transfer = [final_molarConc*well_volume/init_molarConc for init_molarConc, final_molarConc in zip(init_molarConcs, final_molarConcs)]
+    # Calculate volume of pure solvent required to bring the final volume up to well_volume
+    solvent_vol_to_transfer = well_volume - sum(volumes_to_transfer)
 
-    if (solvent_vol_to_transfer < 0.02) or (sum(volumes_to_transfer)+solvent_vol_to_transfer > 1.9) or (not all(0.020 < x < 1.0 for x in volumes_to_transfer)):
-        print(init_molals)
-        print(final_molals)
-        print(densities)
+
+    # Check none of the volumes will produce an error
+    if (solvent_vol_to_transfer < 0) or (not all(x < 1000 for x in volumes_to_transfer)):
         print(volumes_to_transfer)
         print(solvent_vol_to_transfer)
+        print('One or several volumes out of bounds')
         raise ValueError
     else:
-        return volumes_to_transfer+[solvent_vol_to_transfer]
+        return [(w, myround(v, 0.1)) for w, v in zip(stock_wells, volumes_to_transfer)]+[(solvent_well, myround(solvent_vol_to_transfer, 0.1))]
     
+def get_composition(stock_wells, final_molarConcs):
+    """
+    Gets the Material identification for the electrolyte components (for use with get_electrolyte).\n
+    Inputs:\n
+    stock_wells (list/iterable)-> list of strings that must be same length as init_molarConcs. Indicates which stock concentration corresponds to which well in the stock solutions well, e.g. ['0', '2', '3'] Note the final well, '11' is reserved for pure solvent.\n
+    final_molarConcs (list/iterable)-> list of desired electrolyte component molar concentrations in the final mixture. Length should be same as stock concentrations, e.g. [1.5, 0.02, 0.02]\n
+    Outputs:\n
+    query_component_list (list/iterable)-> list of tuples with Material_ID, Material_Name, and molar concentration of each component in the electrolyte, e.g. [(1, 'test1', 2.1), (2, 'test2', 0.4), (3, 'test3', 1.2)]
+    """
+    con = duckdb.connect(database_name)
+    material_id = [con.execute("SELECT Component1_Material_ID, Component1_Name FROM stockSolutions WHERE wellPosition = ?", [w]).fetchone() for w in stock_wells]
+    query_component_list = [(*material, value) for material, value in zip(material_id, final_molarConcs)]
+    con.close()
+    return query_component_list
+
 def volConc_to_mol(wellVol_list):
+    """
+    DEPRECATED\n
+    Converts molal concentration to moles for each component in the electrolyte.\n
+    """
     con = duckdb.connect(database_name)
     mol_comp = {}
     for i in wellVol_list:
@@ -238,18 +262,41 @@ def volConc_to_mol(wellVol_list):
     con.close()
     return mol_comp_list
 
-def add_coinCell(id, electrolyte_id, electrode_ids, trial, optimizer='batterydemo\\NEVHI_42'):
+def add_coinCell(id, electrolyte_id, solvent_id, electrode_ids, trial, optimizer='batterydemo\\NEVHI_42'):
+    """
+    Adds a sample to the coinCells table in the database.\n
+    Inputs:\n
+    id (str) -> unique identifier for the cell\n
+    electrolyte_id (int) -> Electrolyte_ID corresponding to the ID from electrolyteWells/electrolyteComp table for the cell\n
+    solvent_id (int) -> Material_ID corresponding to the solvent used in the electrolyte\n
+    electrode_ids (list) -> list of Material_IDs for the electrodes used in the cell\n
+    trial (int) -> trial number for the cell\n
+    optimizer (str) -> name of the primary optimization client this sample will be part of\n
+    Outputs:\n
+    None
+    """
     con = duckdb.connect(database_name)
-    con.execute("INSERT INTO coinCells (ID, Electrolyte_ID, Electrode1_ID, Electrode2_ID, Opt_Client, Trial) VALUES (?, ?, ?, ?, ?, ?)", [id, electrolyte_id, electrode_ids[0], electrode_ids[1], optimizer, trial])
+    con.execute("INSERT INTO coinCells (ID, Electrolyte_ID, Solvent_Material_ID, Electrode1_ID, Electrode2_ID, Opt_Client, Trial) VALUES (?, ?, ?, ?, ?, ?, ?)", [id, electrolyte_id, solvent_id, electrode_ids[0], electrode_ids[1], optimizer, trial])
     con.close()
 
 def get_trial_id(name_id):
+    """
+    Returns the trial number and optimization client for a given cell ID.\n
+    Inputs:\n
+    name_id (str) -> unique identifier for the cell\n
+    Outputs:\n
+    client_trial (tuple) -> tuple containing the optimization client and trial number for the cell
+    """
     con = duckdb.connect(database_name)
     client_trial = con.execute("SELECT Opt_Client, Trial FROM coinCells WHERE ID = ?", [name_id]).fetchone()
     con.close()
     return client_trial
 
 def aq_solv_percent(name_id):
+    """
+    DEPRECATED\n
+    Returns the percentage of aqueous solvent in the electrolyte.\n
+    """
     try:
         con = duckdb.connect(database_name)
         elec_id = con.execute("SELECT Electrolyte_ID FROM coinCells WHERE ID = ?", [name_id]).fetchone()[0]
@@ -271,6 +318,9 @@ def aq_solv_percent(name_id):
         con.close()
 
 def get_status(name_id):
+    """
+    Gets the status of the cell (0,1,2,3).\n
+    """
     try:
         con = duckdb.connect(database_name)
         status = con.execute("SELECT Status FROM coinCells WHERE ID = ?", [name_id]).fetchone()[0]
@@ -282,40 +332,117 @@ def get_status(name_id):
         con.close()
 
 def get_well(name_id):
+    """
+    Gets the well_ID of the electrolyte used in the cell.\n
+    Inputs:\n
+    name_id (str) -> unique identifier for the cell\n
+    Outputs:\n
+    well (int) -> well_id of the electrolyte
+    """
     try:
         con = duckdb.connect(database_name)
-        status = con.execute("SELECT t2.Well FROM coinCells AS t1 JOIN electrolyteWells AS t2 ON t1.Electrolyte_ID = t2.Electrolyte_ID WHERE t1.ID = ?", [name_id]).fetchone()[0]
+        well = con.execute("SELECT t2.Well FROM coinCells AS t1 JOIN electrolyteWells AS t2 ON t1.Electrolyte_ID = t2.Electrolyte_ID WHERE t1.ID = ?", [name_id]).fetchone()[0]
         con.close()
-        return status
+        return well
     except TypeError:
         print("Cannot find Cell ID.")
     finally:
         con.close()
 
-def add_repeat(name_id, new_electrolyte=True):
-    try:
-        client, id = get_trial_id(name_id)
-        electrolyte_vols = pl.scan_csv(client+'.csv').filter(pl.col('trial') == id).collect()
-        electrolyte_vols = list(electrolyte_vols.row(0))[1:]
-        sum_electrolytes = sum(electrolyte_vols)
-        electrolyte_vols = [(str(i), n) for i,n in enumerate(electrolyte_vols)]
+# def add_repeat(name_id, new_electrolyte=True):
+#     """
+#     DOES NOT WORK YET\n
+#     Adds a repeat of a cell with a new electrolyte.\n
+#     Inputs:\n
+#     name_id (str) -> unique identifier for the cell\n
+#     new_electrolyte (bool) -> if True, a new electrolyte is created, if False, the same electrolyte is used\n
+#     NOTE: track_objs.parquet and elec_mixing_volumes.pkl must be present in the working directory\n
+#     Outputs:\n
+#     None
+#     """
+#     try:
+#         con = duckdb.connect(database_name)
+#         # Get Electrolyte_ID from coinCells table
+#         electrolyte_id = con.execute("SELECT Electrolyte_ID FROM coinCells WHERE ID = ?", [name_id]).fetchone()[0]
+        
+#         # Get composition of the current electrolyte
+#         electrolyte_comps = con.execute("SELECT * FROM electrolyteComp WHERE Electrolyte_ID = ?", [electrolyte_id]).fetchall()
+        
+#         client, id = get_trial_id(name_id)
+#         electrolyte_vols = pl.scan_csv(client+'.csv').filter(pl.col('trial') == id).collect()
+#         electrolyte_vols = list(electrolyte_vols.row(0))[1:]
+#         sum_electrolytes = sum(electrolyte_vols)
+#         electrolyte_vols = [(str(i), n) for i,n in enumerate(electrolyte_vols)]
 
+#         track_objs = pl.read_parquet('track_objs.parquet')
+#         well_id = track_objs['wellIndex_int'][0]
+#         with open('elec_mixing_volumes.pkl', 'rb') as f:
+#             elec_mixing_queue = pickle.load(f)
+#         new_id = "{:05d}".format(random.randint(0,99999))
+    
+#         query_comp_list = volConc_to_mol(electrolyte_vols)
+#         elec_id, well = get_electrolyte(well_id, query_comp_list, sum_electrolytes)
+#         if new_electrolyte:
+#             elec_mixing_queue[new_id] = [electrolyte_vols, well_id]
+#             with open('elec_mixing_volumes.pkl', 'wb') as f:
+#                 pickle.dump(elec_mixing_queue, f)
+#         else:
+#             elec_mixing_queue[new_id] = [electrolyte_vols, well_id]
+#         track_objs = track_objs.with_columns((pl.col('wellIndex_int') + 1).alias('wellIndex_int'))
+#         add_coinCell(new_id, elec_id, [1, 2], id, client+'-repeat')
+#         track_objs.write_parquet('track_objs.parquet')
+        
+#     except Exception as e:
+#         print(e)
+
+def add_repeat(cell_ID, new_electrolyte=True):
+    """
+    For molar concentrations\n
+    Adds a repeat of a cell with a new electrolyte.\n
+    Inputs:\n
+    cell_ID (str) -> unique identifier for the cell\n
+    new_electrolyte (bool) -> creates new electrolyte for the repeat if True, or use the same well for the repeat if False\n
+    NOTE: track_objs.parquet and elec_mixing_volumes.pkl must be present in the working directory\n
+    Outputs:\n
+    None
+    """
+    con = duckdb.connect(database_name)
+    new_id = "{:05d}".format(random.randint(0,99999))
+    # Get electrolyte's old data from coinCells
+    electrolyte_id, trial_num, client = con.execute("SELECT Electrolyte_ID, Trial, Opt_Client FROM coinCells WHERE ID = ?", [cell_ID]).fetchone()
+    electrode_ids = con.execute("SELECT Electrode1_ID, Electrode2_ID FROM coinCells WHERE ID = ?", [cell_ID]).fetchone()
+    if client.endswith('repeat'):
+        client_name = client
+    else:
+        client_name = client+'-repeat'
+
+    if new_electrolyte:
+        con.execute("UPDATE electrolyteWells SET Active = false WHERE Electrolyte_ID = ?", [electrolyte_id])
+        # Get composition of the electrolyte
+        electrolyte_comps = con.execute("SELECT Material_ID, Material_molar_conc FROM electrolyteComp WHERE Electrolyte_ID = ?", [electrolyte_id]).fetchall()
+        materials, final_concs = zip(*electrolyte_comps)
+        stock_wells = [con.execute("SELECT wellPosition FROM stockSolutions WHERE Component1_Material_ID = ?", [i]).fetchone()[0] for i in materials]
+        con.close()
+        # Calculate transfer volumes to get that electrolyte from Stock
+        vols = get_mixing_volumes([str(i) for i in stock_wells], list(final_concs))
+        query_comp_list = get_composition([str(i) for i in stock_wells], list(final_concs))
+        # Prepare well location
         track_objs = pl.read_parquet('track_objs.parquet')
         well_id = track_objs['wellIndex_int'][0]
         with open('elec_mixing_volumes.pkl', 'rb') as f:
             elec_mixing_queue = pickle.load(f)
-        new_id = "{:05d}".format(random.randint(0,99999))
-    
-        query_comp_list = volConc_to_mol(electrolyte_vols)
-        elec_id, well = get_electrolyte(well_id, query_comp_list, sum_electrolytes)
-        if new_electrolyte:
-            elec_mixing_queue[new_id] = [electrolyte_vols, well_id]
-        else:
-            elec_mixing_queue[new_id] = [electrolyte_vols, well_id]
-        track_objs = track_objs.with_columns((pl.col('wellIndex_int') + 1).alias('wellIndex_int'))
-        add_coinCell(new_id, elec_id, [1, 2], id, client+'-repeat')
-        track_objs.write_parquet('track_objs.parquet')
+        # Generate new electrolyte ID
+        new_elec_id, electrolyte_well = get_electrolyte(well_id, query_comp_list, sum(value for _, value in vols))
+        # Insert new electrolyte ID mixing volumes into the dictionary and update track_objs wellIndex
+        elec_mixing_queue[new_id] = [vols, electrolyte_well]
         with open('elec_mixing_volumes.pkl', 'wb') as f:
             pickle.dump(elec_mixing_queue, f)
-    except Exception as e:
-        print(e)
+        track_objs = track_objs.with_columns((pl.col('wellIndex_int') + 1).alias('wellIndex_int'))
+        track_objs.write_parquet('track_objs.parquet')
+        # Add job
+        add_coinCell(new_id, new_elec_id, 1, list(electrode_ids), trial_num, client_name)
+    else:
+        add_coinCell(new_id, electrolyte_id, 1, list(electrode_ids), trial_num, client_name)
+
+def myround(x, base=20.0):
+    return round(base * round(x/base), 1)

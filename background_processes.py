@@ -91,26 +91,18 @@ def live_status_updater(track_objs, otto, Queue):
         try:
             neware_chls = [i for i in listofcells if type(i) == tuple]
             neware_chls = cycler_status(neware_chls, 'neware')
-            chl = neware_chls.filter((pl.col('State') == 'finish') & (pl.col('Occupied') == True)).first().collect()['Neware Channel'][0]
+            chl_tofreeup = neware_chls.filter((pl.col('State') == 'finish') & (pl.col('Occupied') == True)).head(1)['Neware Channel'][0]
             #Queue.append('removeCell '+chl)
             #neware_chls = neware_chls.with_columns(pl.when(pl.col("Neware Channel") == chl).then(False).otherwise(pl.col("Occupied")).alias("Occupied"))
         except pl.ComputeError:
             pass
-        try:
-            old_neware_stat = pl.scan_parquet('Neware_cycler_state.parquet').with_columns(pl.col('Neware Channel').cast(pl.Utf8)).collect()
-            new_neware_stat = neware_chls.with_columns(pl.col('Neware Channel').cast(pl.Utf8)).collect()
-        except pl.ComputeError:
-            continue
-        if not old_neware_stat.frame_equal(new_neware_stat):
-            neware_chls.collect().write_parquet('Neware_cycler_state.parquet')
 
-        availableCapacity_neware = len(neware_chls.filter((pl.col('State') == 'finish') & (pl.col('Occupied') == False)).collect())
+        availableCapacity_neware = len(neware_chls.filter((pl.col('State') == 'finish') & (pl.col('Occupied') == False)))
         ## Astrol Commands
         astrol_chls = [i for i in listofcells if type(i) == str]
         availableCapacity_astrol = 0
         # availableCapacity_astrol = 16 - len(astrol_chls)
         availableCapacity = availableCapacity_astrol + availableCapacity_neware
-
 
         if (availableCapacity == 0 and track_objs.CyclingState.current_state_value == 1) | (availableCapacity != 0 and track_objs.CyclingState.current_state_value == 0):
             track_objs.CyclingState.cycle()
@@ -154,22 +146,24 @@ def cycler_status(listofCells, cycler='astrol'):
             cycler_status = pl.DataFrame({'CyclerSlot': [str(a)+'-'+str(b) for a in range(2) for b in range(1,9)], 'Name': None, 'Status': None}, schema=[('CyclerSlot', pl.Utf8), ('Name', pl.Utf8), ('Status', pl.Utf8)])
         return cycler_status
     elif cycler.lower() == 'neware':
-        pl_lf = pl.DataFrame(listofCells, schema=['Neware Channel', 'State'], orient='row').lazy()
+        pl_df = pl.DataFrame(listofCells, schema=['Neware Channel', 'State'], orient='row')
         try:
-            previous_state_lf = pl.scan_parquet('Neware_cycler_state.parquet')
+            previous_state_df = pl.read_parquet('Neware_cycler_state.parquet')
         except FileNotFoundError:
             #TO DO: create file if not found
             pass
-        pl_lf = pl_lf.join(previous_state_lf.select(['Neware Channel', 'Occupied']), on='Neware Channel')
-        return pl_lf
+        pl_df = pl_df.join(previous_state_df.select(['Neware Channel', 'Occupied']), on='Neware Channel', how='left')
+        if not pl_df.frame_equal(previous_state_df):
+            pl_df.write_parquet('Neware_cycler_state.parquet')
+        return pl_df
 
 
 def myround(x, base=20.0):
-    return base * round(x/base)
+    return round(base * round(x/base), 1)
 
 def trial_saver(trial, data_points, file_name='default.csv'):
     trial_dict = {'trial':trial}
-    trial_dict.update({i: myround(data_points[i]) for i in data_points})
+    trial_dict.update({i: myround(data_points[i], 0.1) for i in data_points})
     try:
         pl.read_csv(file_name)
         with open(file_name, mode="ab") as f:

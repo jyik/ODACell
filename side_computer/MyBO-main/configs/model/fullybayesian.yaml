@@ -1,0 +1,9 @@
+name: fullybayesian
+kwargs:
+  is_fully_bayesian: True
+  prior: saas
+
+fit_kwargs:
+  warmup_steps: 128
+  num_samples: 128
+  thinning: 8

@@ -161,18 +161,18 @@ def find_outer_circle(image_path, minrad, maxrad, mindis=100, camera=None, p1=15
                 max_radius = radius
 
         # Draw the fitted circle on the original image
-        cv2.circle(image, (max_circle[0], max_circle[1]), max_radius, (0, 255, 0), 10)
-        cv2.line(image, (max_circle[0]-5, max_circle[1]), (max_circle[0]+5, max_circle[1]), (0, 255, 0), 10)
-        cv2.line(image, (max_circle[0], max_circle[1]-5), (max_circle[0], max_circle[1]+5), (0, 255, 0), 10)
+        cv2.circle(image, (max_circle[0], max_circle[1]), max_radius, (0, 255, 0), 25)
+        cv2.line(image, (max_circle[0]-5, max_circle[1]), (max_circle[0]+5, max_circle[1]), (0, 255, 0), 35)
+        cv2.line(image, (max_circle[0], max_circle[1]-5), (max_circle[0], max_circle[1]+5), (0, 255, 0), 35)
 
         # Draw ideal centerpoint on the original image if camera specified
         if camera:
             if camera.lower() == 'top':
-                cv2.line(image, (top_cam_ref[0]-10, top_cam_ref[1]), (top_cam_ref[0]+10, top_cam_ref[1]), (0, 0, 255), 10)
-                cv2.line(image, (top_cam_ref[0], top_cam_ref[1]-10), (top_cam_ref[0], top_cam_ref[1]+10), (0, 0, 255), 10)
+                cv2.line(image, (top_cam_ref[0]-10, top_cam_ref[1]), (top_cam_ref[0]+10, top_cam_ref[1]), (0, 0, 255), 25)
+                cv2.line(image, (top_cam_ref[0], top_cam_ref[1]-10), (top_cam_ref[0], top_cam_ref[1]+10), (0, 0, 255), 25)
             elif camera.lower() == 'btm':
-                cv2.line(image, (btm_cam_ref[0]-10, btm_cam_ref[1]), (btm_cam_ref[0]+10, btm_cam_ref[1]), (0, 0, 255), 10)
-                cv2.line(image, (btm_cam_ref[0], btm_cam_ref[1]-10), (btm_cam_ref[0], btm_cam_ref[1]+10), (0, 0, 255), 10)
+                cv2.line(image, (btm_cam_ref[0]-25, btm_cam_ref[1]), (btm_cam_ref[0]+25, btm_cam_ref[1]), (0, 0, 255), 25)
+                cv2.line(image, (btm_cam_ref[0], btm_cam_ref[1]-25), (btm_cam_ref[0], btm_cam_ref[1]+25), (0, 0, 255), 25)
 
         # Put text for fitted circle on the original image
         cv2.putText(image, f'Fitted Centerpoint: ({max_circle[0]}, {max_circle[1]})', (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 255, 0), 2)

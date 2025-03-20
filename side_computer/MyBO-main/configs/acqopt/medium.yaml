@@ -1,0 +1,5 @@
+raw_samples: 2048
+num_restarts: 8
+options:
+  batch_limit: 128
+  sample_around_best: True

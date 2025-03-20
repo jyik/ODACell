@@ -114,7 +114,7 @@ class NewareAPI:
         recvData = self.wait_reply()
         return recvData
     
-    def startCell(self, chlid, cell_id, procedure_dir=r"C:\Program Files (x86)\NEWARE\BTSClient80\StepManager\Jackie_templates\lfp_lto_aq_bo.xml"):
+    def startCell(self, chlid, cell_id, procedure_dir=r"C:\Program Files (x86)\NEWARE\BTSClient80\StepManager\Jackie_templates\ZnCu_BO_additives_5mAcm2.xml"):
         """
         Start designated protocol file on chlid (str - specified by the mapping).
         cell_id will be the barcode.

@@ -1,4 +1,4 @@
-from database_functions import get_electrolyte, dispense_electrolyte, get_job, change_coinCell_status, volConc_to_mol, add_coinCell, get_trial_id, aq_solv_percent, get_status, get_well
+from database_functions import get_electrolyte, dispense_electrolyte, get_job, change_coinCell_status, get_mixing_volumes, add_coinCell, get_trial_id, aq_solv_percent, get_status, get_composition
 import polars as pl
 import pickle
 import random
@@ -71,7 +71,7 @@ def keyboard_input():
         # thread doesn't continue until key is pressed
         print("You entered: " + keystrk)
         if keystrk == 'q':
-            otto.RawInput("pipette_right.move_to(location=s_tiprack.wells()[7].top(z=120.0))")
+            otto.RawInput("pipette_right.move_to(location=s_tiprack.wells()[64].top(z=120.0))")
             print('shutting down...')
             time.sleep(1)
             otto.ssh_channel.send("exit()\n".encode())
@@ -101,16 +101,17 @@ def removeCell(rest_of_cmds):
         opt_client, opt_trial = get_trial_id(name_id)
         returnMsg = send('C exportCelldata '+toremove_cycler_id)
         #returnMsg = send('C stopCell '+name_id)
-        returnMsg = send('C registerResults '+name_id+' '+str(opt_trial)+' '+str(aq_solv_percent(name_id)))
+        #returnMsg = send('C registerResults '+name_id+' '+str(opt_trial))
         change_coinCell_status(3, name_id)
         dgrip.remove_from_cycler('Neware C'+toremove_cycler_id)
-        pl.scan_parquet('Neware_cycler_state.parquet').with_columns(pl.when(pl.col("Neware Channel") == toremove_cycler_id).then(False).otherwise(pl.col("Occupied")).alias("Occupied")).collect().write_parquet('Neware_cycler_state.parquet')
+        newaredf = pl.read_parquet('Neware_cycler_state.parquet').with_columns(
+            pl.when(pl.col("Neware Channel") == toremove_cycler_id)
+            .then(False)
+            .otherwise(pl.col("Occupied"))
+            .alias("Occupied"))
+        newaredf.write_parquet('Neware_cycler_state.parquet')
     except:
-        #Revert any changes
-        lzfm = pl.scan_parquet('Neware_cycler_state.parquet')
-        lzfm = lzfm.with_columns(pl.when(pl.col("Neware Channel") == rest_of_cmds[0]).then(True).otherwise(pl.col("Occupied")).alias("Occupied"))
-        df = lzfm.collect()
-        df.write_parquet('Neware_cycler_state.parquet')
+        print('Could not remove Cell. Double check the Neware_cycler_state.parquet and if files are exported / Trial has been completed')
         raise Exception
 
 def assembleCell(rest_of_cmds):
@@ -150,7 +151,7 @@ def assembleCell(rest_of_cmds):
             astrol_chls = [i for i in listofcells if type(i) == str]
             cycler_stat = cycler_status(astrol_chls, 'astrol')
             try:
-                chl = neware_chls.filter((pl.col('State') == 'finish') & (pl.col('Occupied') == False)).first().collect()['Neware Channel'][0]
+                chl = neware_chls.filter((pl.col('State') == 'finish') & (pl.col('Occupied') == False)).head(1)['Neware Channel'][0]
                 cycle_pos = 'Neware C'+chl
                 break
             except pl.ComputeError:
@@ -241,23 +242,25 @@ def add_job(rest_of_cmds):
     try:
         trials = send('Q opt_get_designs '+optimizer+' '+num_trials)
         #default electrode_id for now
-        electrode_ids = [1, 2]
+        electrode_ids = [2, 3]
         for trial in trials:
             components, trial_num = trial
-            wellVol_list = [(key[1],myround(components[key])) for key in components]
-            last_vol = 1100 - sum([i[1] for i in wellVol_list])
-            wellVol_list.append(('7', last_vol if last_vol >= 0.0 else 0.0))
-            components['x7_litfsi_h2o'] = wellVol_list[-1][1]
-            trial_saver(trial_num, components, optimizer+'.csv')
+            # components will be a dictionary of {'optimization_parameter_name': ConcValue}
+            wells_list, desiredConc_list = zip(*[(key[1], components[key]) for key in components])
+            wellVol_list = get_mixing_volumes(wells_list, desiredConc_list)
+            query_comp_list = get_composition(wells_list, desiredConc_list)
+            #wellVol_list = [(key, myround(value, 0.1)) for key, value in wellVol_list]
             print(wellVol_list)
-            query_comp_list = volConc_to_mol(wellVol_list)
-            elec_id, well = get_electrolyte(track_objs.wellIndex_int, query_comp_list, sum([myround(components[i]) for i in components]))
+            trial_saver_dict = dict(zip(components.keys(), [x[1] for x in wellVol_list][:-1]))
+            trial_saver_dict['solvent'] = wellVol_list[-1][1]
+            trial_saver(trial_num, trial_saver_dict, optimizer+'.csv')
+            elec_id, electrolyte_well = get_electrolyte(track_objs.wellIndex_int, query_comp_list, sum(value for _, value in wellVol_list))
             name_id = "{:05d}".format(random.randint(0,99999))
-            if well == track_objs.wellIndex_int:
-                elec_mixing_queue[name_id] = [wellVol_list, well]
+            if electrolyte_well == track_objs.wellIndex_int:
+                elec_mixing_queue[name_id] = [wellVol_list, electrolyte_well]
                 with open('elec_mixing_volumes.pkl', 'wb') as f:
                     pickle.dump(elec_mixing_queue, f)
-            add_coinCell(name_id, elec_id, electrode_ids, trial_num, optimizer)
+            add_coinCell(name_id, elec_id, 1, electrode_ids, trial_num, optimizer)
             track_objs.wellIndex_int += 1
     except TypeError:
         print('canceled, no jobs added')

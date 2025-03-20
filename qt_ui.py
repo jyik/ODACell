@@ -366,6 +366,7 @@ class stockSolutions_window(object):
         self.comp_0_box.setObjectName("comp_0_box")
         self.verticalLayout_12.addWidget(self.comp_0_box)
         self.conc_0 = QtWidgets.QDoubleSpinBox(self.widget)
+        self.conc_0.setDecimals(3)
         self.conc_0.setObjectName("conc_0")
         self.verticalLayout_12.addWidget(self.conc_0)
         self.volume_0 = QtWidgets.QDoubleSpinBox(self.widget)
@@ -395,6 +396,7 @@ class stockSolutions_window(object):
         self.comp_1_box.setObjectName("comp_1_box")
         self.verticalLayout_11.addWidget(self.comp_1_box)
         self.conc_1 = QtWidgets.QDoubleSpinBox(self.widget)
+        self.conc_1.setDecimals(3)
         self.conc_1.setObjectName("conc_1")
         self.verticalLayout_11.addWidget(self.conc_1)
         self.volume_1 = QtWidgets.QDoubleSpinBox(self.widget)
@@ -424,6 +426,7 @@ class stockSolutions_window(object):
         self.comp_2_box.setObjectName("comp_2_box")
         self.verticalLayout_10.addWidget(self.comp_2_box)
         self.conc_2 = QtWidgets.QDoubleSpinBox(self.widget)
+        self.conc_2.setDecimals(3)
         self.conc_2.setObjectName("conc_2")
         self.verticalLayout_10.addWidget(self.conc_2)
         self.volume_2 = QtWidgets.QDoubleSpinBox(self.widget)
@@ -453,6 +456,7 @@ class stockSolutions_window(object):
         self.comp_3_box.setObjectName("comp_3_box")
         self.verticalLayout_9.addWidget(self.comp_3_box)
         self.conc_3 = QtWidgets.QDoubleSpinBox(self.widget)
+        self.conc_3.setDecimals(3)
         self.conc_3.setObjectName("conc_3")
         self.verticalLayout_9.addWidget(self.conc_3)
         self.volume_3 = QtWidgets.QDoubleSpinBox(self.widget)
@@ -482,6 +486,7 @@ class stockSolutions_window(object):
         self.comp_4_box.setObjectName("comp_4_box")
         self.verticalLayout_8.addWidget(self.comp_4_box)
         self.conc_4 = QtWidgets.QDoubleSpinBox(self.widget)
+        self.conc_4.setDecimals(3)
         self.conc_4.setObjectName("conc_4")
         self.verticalLayout_8.addWidget(self.conc_4)
         self.volume_4 = QtWidgets.QDoubleSpinBox(self.widget)
@@ -511,6 +516,7 @@ class stockSolutions_window(object):
         self.comp_5_box.setObjectName("comp_5_box")
         self.verticalLayout_7.addWidget(self.comp_5_box)
         self.conc_5 = QtWidgets.QDoubleSpinBox(self.widget)
+        self.conc_5.setDecimals(3)
         self.conc_5.setObjectName("conc_5")
         self.verticalLayout_7.addWidget(self.conc_5)
         self.volume_5 = QtWidgets.QDoubleSpinBox(self.widget)
@@ -540,6 +546,7 @@ class stockSolutions_window(object):
         self.comp_6_box.setObjectName("comp_6_box")
         self.verticalLayout_6.addWidget(self.comp_6_box)
         self.conc_6 = QtWidgets.QDoubleSpinBox(self.widget)
+        self.conc_6.setDecimals(3)
         self.conc_6.setObjectName("conc_6")
         self.verticalLayout_6.addWidget(self.conc_6)
         self.volume_6 = QtWidgets.QDoubleSpinBox(self.widget)
@@ -569,6 +576,7 @@ class stockSolutions_window(object):
         self.comp_7_box.setObjectName("comp_7_box")
         self.verticalLayout_5.addWidget(self.comp_7_box)
         self.conc_7 = QtWidgets.QDoubleSpinBox(self.widget)
+        self.conc_7.setDecimals(3)
         self.conc_7.setObjectName("conc_7")
         self.verticalLayout_5.addWidget(self.conc_7)
         self.volume_7 = QtWidgets.QDoubleSpinBox(self.widget)
@@ -598,6 +606,7 @@ class stockSolutions_window(object):
         self.comp_8_box.setObjectName("comp_8_box")
         self.verticalLayout_4.addWidget(self.comp_8_box)
         self.conc_8 = QtWidgets.QDoubleSpinBox(self.widget)
+        self.conc_8.setDecimals(3)
         self.conc_8.setObjectName("conc_8")
         self.verticalLayout_4.addWidget(self.conc_8)
         self.volume_8 = QtWidgets.QDoubleSpinBox(self.widget)
@@ -627,6 +636,7 @@ class stockSolutions_window(object):
         self.comp_9_box.setObjectName("comp_9_box")
         self.verticalLayout_3.addWidget(self.comp_9_box)
         self.conc_9 = QtWidgets.QDoubleSpinBox(self.widget)
+        self.conc_9.setDecimals(3)
         self.conc_9.setObjectName("conc_9")
         self.verticalLayout_3.addWidget(self.conc_9)
         self.volume_9 = QtWidgets.QDoubleSpinBox(self.widget)
@@ -656,6 +666,7 @@ class stockSolutions_window(object):
         self.comp_10_box.setObjectName("comp_10_box")
         self.verticalLayout_2.addWidget(self.comp_10_box)
         self.conc_10 = QtWidgets.QDoubleSpinBox(self.widget)
+        self.conc_10.setDecimals(3)
         self.conc_10.setObjectName("conc_10")
         self.verticalLayout_2.addWidget(self.conc_10)
         self.volume_10 = QtWidgets.QDoubleSpinBox(self.widget)
@@ -685,6 +696,7 @@ class stockSolutions_window(object):
         self.comp_11_box.setObjectName("comp_11_box")
         self.verticalLayout.addWidget(self.comp_11_box)
         self.conc_11 = QtWidgets.QDoubleSpinBox(self.widget)
+        self.conc_11.setDecimals(3)
         self.conc_11.setObjectName("conc_11")
         self.verticalLayout.addWidget(self.conc_11)
         self.volume_11 = QtWidgets.QDoubleSpinBox(self.widget)
@@ -708,7 +720,7 @@ class stockSolutions_window(object):
         self.label_13.setText(_translate("Dialog", "Stock Solutions"))
         self.label_14.setText(_translate("Dialog", "Solvent"))
         self.label_15.setText(_translate("Dialog", "Component"))
-        self.label_16.setText(_translate("Dialog", "Component Conc (m)"))
+        self.label_16.setText(_translate("Dialog", "Component Conc (M)"))
         self.label_17.setText(_translate("Dialog", "Volume (uL)"))
         self.label_18.setText(_translate("Dialog", "Density (g/mL)"))
         self.label.setText(_translate("Dialog", "0"))
@@ -942,7 +954,7 @@ class stock_solutions_gui(QtWidgets.QDialog):
                            [self.ui.solv_9_box, self.ui.comp_9_box, self.ui.conc_9, self.ui.volume_9, self.ui.density_9],
                            [self.ui.solv_10_box, self.ui.comp_10_box, self.ui.conc_10, self.ui.volume_10, self.ui.density_10],
                            [self.ui.solv_11_box, self.ui.comp_11_box, self.ui.conc_11, self.ui.volume_11, self.ui.density_11]]
-        active_stock = self.con.sql("SELECT wellPosition, Solvent_Material_ID, Solvent_Name, Component1_Material_ID, Component1_Name, Component1_Conc_molal, Density_gmL, Volume_uL FROM stockSolutions").fetchall()
+        active_stock = self.con.sql("SELECT wellPosition, Solvent_Material_ID, Solvent_Name, Component1_Material_ID, Component1_Name, Component1_molar_conc, Density_gmL, Volume_uL FROM stockSolutions").fetchall()
         if active_stock:
             for item in active_stock:
                 well = item[0]
@@ -963,7 +975,7 @@ class stock_solutions_gui(QtWidgets.QDialog):
         Solvent_Name VARCHAR(255),
         Component1_Material_ID INTEGER,
         Component1_Name VARCHAR(255), 
-        Component1_Conc_molal DOUBLE,
+        Component1_molar_conc DOUBLE,
         Density_gmL DOUBLE,
         Volume_uL DOUBLE)""")
 
@@ -971,7 +983,7 @@ class stock_solutions_gui(QtWidgets.QDialog):
         solutions_list = [i for i in to_db if len(i) == 8]
         solvents_list = [i[:3]+i[-2:] for i in to_db if len(i) == 7]
         if solutions_list:
-            self.con.executemany("INSERT INTO StockSolutions(wellPosition, Solvent_Material_ID, Solvent_Name, Component1_Material_ID, Component1_Name, Component1_Conc_molal, Density_gmL, Volume_uL) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", solutions_list)
+            self.con.executemany("INSERT INTO StockSolutions(wellPosition, Solvent_Material_ID, Solvent_Name, Component1_Material_ID, Component1_Name, Component1_molar_conc, Density_gmL, Volume_uL) VALUES (?, ?, ?, ?, ?, ?, ?, ?)", solutions_list)
         if solvents_list:
             self.con.executemany("INSERT INTO StockSolutions(wellPosition, Solvent_Material_ID, Solvent_Name, Density_gmL, Volume_uL) VALUES (?, ?, ?, ?, ?)", solvents_list)
     def get_material_list(self):

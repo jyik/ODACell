@@ -1,0 +1,25 @@
+name: ZnCuAdditives_20250313
+
+parameters:
+  x0_ZnCl2: 
+    bounds: [0.16, 2.5]
+    type: range
+  x1_TU: 
+    bounds: [0, 0.1]
+    type: range
+  x2_MAP: 
+    bounds: [0, 0.1]
+    type: range
+  x3_SDS: 
+    bounds: [0, 0.0015]
+    type: range
+
+objectives:
+  coulombic_eff: 
+    threshold: 2.19722 #logit(0.90)
+
+  
+  
+  
+   
+  
